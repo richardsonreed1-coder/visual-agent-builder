@@ -273,12 +273,14 @@ app.post('/api/configure-node', async (req, res) => {
   }
 });
 
-// Health check endpoint with pool status
+// Health check endpoint
 app.get('/api/health', (req, res) => {
   const poolStatus = getPoolStatus();
   res.json({
     status: 'ok',
-    timestamp: Date.now(),
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    inventoryRoot: INVENTORY_ROOT,
     pools: poolStatus,
   });
 });

@@ -28,6 +28,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Database
+*.sqlite
+*.sqlite3
+
 # Testing
 coverage/
 

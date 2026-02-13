@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-3001}:3001"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - sqlite-data:/app/server/data
+    restart: unless-stopped
+
+volumes:
+  sqlite-data:
