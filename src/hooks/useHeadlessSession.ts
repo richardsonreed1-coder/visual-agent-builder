@@ -65,8 +65,6 @@ export interface UseHeadlessSessionReturn extends UseSocketReturn {
 
 export function useHeadlessSession(): UseHeadlessSessionReturn {
   const {
-    nodes,
-    edges,
     addNode,
     addEdge,
     setNodes,
@@ -150,12 +148,14 @@ export function useHeadlessSession(): UseHeadlessSessionReturn {
   }, [addNode]);
 
   // Handle node updated from server
+  // Uses useStore.getState() for fresh state to avoid stale closures during rapid updates
   const handleNodeUpdated = useCallback((payload: CanvasNodeUpdatePayload) => {
     const { nodeId, changes } = payload;
 
     if (changes.position) {
+      const currentNodes = useStore.getState().nodes;
       setNodes(
-        nodes.map((node) =>
+        currentNodes.map((node) =>
           node.id === nodeId
             ? { ...node, position: changes.position! }
             : node
@@ -171,19 +171,21 @@ export function useHeadlessSession(): UseHeadlessSessionReturn {
     }
 
     console.log(`[Headless] Node updated: ${nodeId}`);
-  }, [nodes, setNodes, updateNodeData]);
+  }, [setNodes, updateNodeData]);
 
   // Handle node deleted from server
+  // Uses useStore.getState() for fresh state to avoid stale closures during rapid deletions
   const handleNodeDeleted = useCallback((nodeId: string) => {
-    setNodes(nodes.filter((node) => node.id !== nodeId));
+    const { nodes: currentNodes, edges: currentEdges } = useStore.getState();
+    setNodes(currentNodes.filter((node) => node.id !== nodeId));
     // Also remove edges connected to this node
     setEdges(
-      edges.filter(
+      currentEdges.filter(
         (edge) => edge.source !== nodeId && edge.target !== nodeId
       )
     );
     console.log(`[Headless] Node deleted: ${nodeId}`);
-  }, [nodes, edges, setNodes, setEdges]);
+  }, [setNodes, setEdges]);
 
   // Handle edge created from server
   // Phase 6.3 v4: Uses addEdge() which reads fresh state via get() inside store
@@ -207,10 +209,12 @@ export function useHeadlessSession(): UseHeadlessSessionReturn {
   }, [addEdge]);
 
   // Handle edge deleted from server
+  // Uses useStore.getState() for fresh state to avoid stale closures during rapid deletions
   const handleEdgeDeleted = useCallback((edgeId: string) => {
-    setEdges(edges.filter((edge) => edge.id !== edgeId));
+    const currentEdges = useStore.getState().edges;
+    setEdges(currentEdges.filter((edge) => edge.id !== edgeId));
     console.log(`[Headless] Edge deleted: ${edgeId}`);
-  }, [edges, setEdges]);
+  }, [setEdges]);
 
   // Handle session state changes
   const handleSessionStateChange = useCallback(
@@ -263,13 +267,14 @@ export function useHeadlessSession(): UseHeadlessSessionReturn {
     onError: handleError,
   });
 
-  // Sync canvas to server when nodes/edges change (debounced in real implementation)
+  // Sync canvas to server when nodes/edges change
+  // Subscribe to store changes directly to avoid stale closure issues
+  const { nodes: currentNodes, edges: currentEdges } = useStore();
   useEffect(() => {
     if (socketReturn.isConnected && socketReturn.sessionId) {
-      // Only sync if we have an active session
-      socketReturn.syncCanvas(nodes, edges);
+      socketReturn.syncCanvas(currentNodes, currentEdges);
     }
-  }, [nodes, edges, socketReturn.isConnected, socketReturn.sessionId]);
+  }, [currentNodes, currentEdges, socketReturn.isConnected, socketReturn.sessionId, socketReturn.syncCanvas]);
 
   return socketReturn;
 }
