@@ -2,7 +2,16 @@ import fs from 'fs/promises';
 import path from 'path';
 import { inferBucketAndSubcategory } from './bucketInference';
 
-export const INVENTORY_ROOT = '/Users/reedrichardson/Desktop/Master-Agent';
+// Configurable via INVENTORY_ROOT env var; falls back to hardcoded default
+const DEFAULT_INVENTORY_ROOT = '/Users/reedrichardson/Desktop/Master-Agent';
+export const INVENTORY_ROOT = process.env.INVENTORY_ROOT || DEFAULT_INVENTORY_ROOT;
+
+/**
+ * Get the inventory root path (configurable via INVENTORY_ROOT env var).
+ */
+export function getInventoryRoot(): string {
+  return INVENTORY_ROOT;
+}
 
 // =============================================================================
 // Search Types
