@@ -1,9 +1,9 @@
-import { UseFormRegister, FieldErrors } from 'react-hook-form';
+import { UseFormRegister, FieldErrors, FieldValues } from 'react-hook-form';
 import { FieldSchema } from '../schemas';
 
 interface TextFieldProps {
   field: FieldSchema;
-  register: UseFormRegister<any>;
+  register: UseFormRegister<FieldValues>;
   errors: FieldErrors;
 }
 

@@ -1,12 +1,12 @@
-import { UseFormRegister, FieldErrors, UseFormWatch, UseFormSetValue } from 'react-hook-form';
+import { UseFormRegister, FieldErrors, UseFormWatch, UseFormSetValue, FieldValues } from 'react-hook-form';
 import { FieldSchema } from '../schemas';
 
 interface SliderFieldProps {
   field: FieldSchema;
-  register: UseFormRegister<any>;
+  register: UseFormRegister<FieldValues>;
   errors: FieldErrors;
-  watch: UseFormWatch<any>;
-  setValue: UseFormSetValue<any>;
+  watch: UseFormWatch<FieldValues>;
+  setValue: UseFormSetValue<FieldValues>;
   disabled?: boolean;
 }
 

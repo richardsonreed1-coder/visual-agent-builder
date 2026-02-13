@@ -1,16 +1,13 @@
-import { UseFormWatch, UseFormSetValue, FieldErrors } from 'react-hook-form';
+import { UseFormWatch, UseFormSetValue, FieldErrors, FieldValues } from 'react-hook-form';
 import { FieldSchema } from '../schemas';
 import { ChevronDown } from 'lucide-react';
 import { AgentRoleCategory } from '../../../types/core';
 
 interface RoleSelectFieldProps {
   field: FieldSchema;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   errors: FieldErrors;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  watch: UseFormWatch<any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  setValue: UseFormSetValue<any>;
+  watch: UseFormWatch<FieldValues>;
+  setValue: UseFormSetValue<FieldValues>;
 }
 
 // Category metadata

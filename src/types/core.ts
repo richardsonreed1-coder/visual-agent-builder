@@ -31,7 +31,7 @@ export interface Position {
 }
 
 export interface NodeConfig {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // ============================================================================

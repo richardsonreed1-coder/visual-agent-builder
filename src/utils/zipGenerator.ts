@@ -40,23 +40,24 @@ export const generateDirectoryTree = (files: DirectoryExport): string => {
   const lines: string[] = ['.'];
 
   // Build tree structure
-  const tree: Record<string, any> = {};
+  interface TreeNode { [key: string]: TreeNode | null }
+  const tree: TreeNode = {};
 
   paths.forEach(path => {
     const parts = path.split('/');
-    let current = tree;
+    let current: TreeNode = tree;
     parts.forEach((part, index) => {
       if (!current[part]) {
         current[part] = index === parts.length - 1 ? null : {};
       }
       if (current[part] !== null) {
-        current = current[part];
+        current = current[part] as TreeNode;
       }
     });
   });
 
   // Render tree
-  const renderTree = (node: Record<string, any>, prefix: string = '') => {
+  const renderTree = (node: TreeNode, prefix: string = '') => {
     const keys = Object.keys(node);
     keys.forEach((key, index) => {
       const isLast = index === keys.length - 1;

@@ -1,13 +1,13 @@
 import { useState, useCallback, KeyboardEvent } from 'react';
-import { UseFormWatch, UseFormSetValue, FieldErrors } from 'react-hook-form';
+import { UseFormWatch, UseFormSetValue, FieldErrors, FieldValues } from 'react-hook-form';
 import { FieldSchema } from '../schemas';
 import { X, Plus } from 'lucide-react';
 
 interface ChipsFieldProps {
   field: FieldSchema;
   errors: FieldErrors;
-  watch: UseFormWatch<any>;
-  setValue: UseFormSetValue<any>;
+  watch: UseFormWatch<FieldValues>;
+  setValue: UseFormSetValue<FieldValues>;
 }
 
 export const ChipsField = ({ field, errors, watch, setValue }: ChipsFieldProps) => {

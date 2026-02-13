@@ -49,6 +49,7 @@ export interface CanvasNodePayload {
   position: { x: number; y: number };
   parentId?: string;
   data?: Record<string, unknown>;
+  style?: Record<string, unknown>;  // Optional React Flow node styling (e.g. width, height for containers)
 }
 
 export interface CanvasNodeUpdatePayload {
@@ -66,6 +67,13 @@ export interface CanvasEdgePayload {
   targetId: string;
   edgeType?: string;
   data?: Record<string, unknown>;
+}
+
+export interface CanvasEdgeUpdatePayload {
+  edgeId: string;
+  changes: {
+    data?: Record<string, unknown>;
+  };
 }
 
 // -----------------------------------------------------------------------------
@@ -186,6 +194,9 @@ export interface ClientToServerEvents {
   // Fixer: standalone Claude call for configuration fixes
   'fixer:start': (payload: { sessionId: string; prompt: string }) => void;
   'fixer:stop': (payload: { sessionId: string }) => void;
+
+  // Canvas edge updates (client informing server of edge property changes)
+  'canvas:update_edge': (payload: CanvasEdgeUpdatePayload) => void;
 }
 
 // -----------------------------------------------------------------------------

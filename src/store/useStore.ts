@@ -92,7 +92,7 @@ interface StoreState {
   addNode: (node: Node) => void;
   setSelectedNode: (node: Node | null) => void;
   setSelectedEdge: (edge: Edge | null) => void;  // Phase 6.3: Select edge action
-  updateNodeData: (nodeId: string, newData: any) => void;
+  updateNodeData: (nodeId: string, newData: Record<string, unknown>) => void;
   updateEdgeType: (edgeId: string, newType: string) => void;  // Phase 6.3: Update edge type
   setLibraryCategory: (category: string, addToAgentMode?: boolean) => void;
   // Workflow config

@@ -269,7 +269,8 @@ export const PropertiesPanel = () => {
     updateEdgeType(selectedEdge.id, newType);
 
     // 2. Sync to Backend for persistence in layout.json
-    socket?.emit('canvas:update_edge' as any, {
+    // Socket event not in typed event map — cast socket for custom emit
+    (socket as unknown as { emit: (event: string, data: Record<string, unknown>) => void })?.emit('canvas:update_edge', {
       edgeId: selectedEdge.id,
       changes: { data: { type: newType } }
     });
@@ -311,7 +312,7 @@ export const PropertiesPanel = () => {
 
   // Phase 6.3: Render Edge Inspector Panel
   if (selectedEdge) {
-    const currentType = (selectedEdge.data as any)?.type || 'default';
+    const currentType = (selectedEdge.data as Record<string, unknown> | undefined)?.type as string || 'default';
     const sourceNode = nodes.find(n => n.id === selectedEdge.source);
     const targetNode = nodes.find(n => n.id === selectedEdge.target);
     const sourceLabel = sourceNode?.data?.label || 'Source';

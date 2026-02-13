@@ -181,7 +181,7 @@ AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
     const agents = this.getNodesByType('AGENT');
     const options = this.config.frameworkOptions.autogen!;
 
-    const agentConfigs: Record<string, any> = {
+    const agentConfigs: Record<string, Record<string, unknown>> = {
       user_proxy: {
         type: 'UserProxyAgent',
         name: 'user_proxy',

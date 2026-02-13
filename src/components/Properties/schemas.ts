@@ -38,11 +38,11 @@ export interface FieldSchema {
   options?: { label: string; value: string | number; description?: string }[];
   placeholder?: string;
   description?: string;      // Help text / tooltip
-  defaultValue?: any;
+  defaultValue?: string | number | boolean | string[];
   validation?: FieldValidation;
   conditional?: {            // Show field only when condition is met
     field: string;
-    value: any;
+    value: string | number | boolean;
     operator?: 'eq' | 'neq' | 'in' | 'exists';
   };
   dependsOn?: string;        // Dynamic options based on another field
@@ -50,7 +50,7 @@ export interface FieldSchema {
   readonly?: boolean;
   lockedWhen?: {             // Lock field to specific value based on role
     roles: string[];         // Roles that trigger the lock
-    value: any;              // Value to lock the field to
+    value: string | number | boolean;  // Value to lock the field to
     reason?: string;         // Explanation shown in tooltip
   };
 }
@@ -1842,9 +1842,9 @@ export const getFieldsForType = (type: NodeType): FieldSchema[] => {
 /**
  * Get default values for a node type
  */
-export const getDefaultsForType = (type: NodeType): Record<string, any> => {
+export const getDefaultsForType = (type: NodeType): Record<string, string | number | boolean | string[]> => {
   const schema = nodeSchemas[type];
-  const defaults: Record<string, any> = {};
+  const defaults: Record<string, string | number | boolean | string[]> = {};
 
   schema.fields.forEach(field => {
     if (field.defaultValue !== undefined) {

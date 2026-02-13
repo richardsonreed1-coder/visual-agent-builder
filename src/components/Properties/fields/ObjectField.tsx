@@ -1,13 +1,13 @@
 import { useState, useCallback } from 'react';
-import { UseFormWatch, UseFormSetValue, FieldErrors } from 'react-hook-form';
+import { UseFormWatch, UseFormSetValue, FieldErrors, FieldValues } from 'react-hook-form';
 import { FieldSchema } from '../schemas';
 import { Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface ObjectFieldProps {
   field: FieldSchema;
   errors: FieldErrors;
-  watch: UseFormWatch<any>;
-  setValue: UseFormSetValue<any>;
+  watch: UseFormWatch<FieldValues>;
+  setValue: UseFormSetValue<FieldValues>;
 }
 
 export const ObjectField = ({ field, errors, watch, setValue }: ObjectFieldProps) => {

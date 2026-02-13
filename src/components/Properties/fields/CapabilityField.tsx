@@ -1,5 +1,5 @@
 import { useState, useCallback, KeyboardEvent, useRef, useEffect } from 'react';
-import { UseFormWatch, UseFormSetValue, FieldErrors } from 'react-hook-form';
+import { UseFormWatch, UseFormSetValue, FieldErrors, FieldValues } from 'react-hook-form';
 import { FieldSchema } from '../schemas';
 import { X, Plus, Settings, FolderOpen } from 'lucide-react';
 import useStore from '../../../store/useStore';
@@ -8,8 +8,8 @@ import { CapabilityUsageConfig } from '../../../types/core';
 interface CapabilityFieldProps {
   field: FieldSchema;
   errors: FieldErrors;
-  watch: UseFormWatch<any>;
-  setValue: UseFormSetValue<any>;
+  watch: UseFormWatch<FieldValues>;
+  setValue: UseFormSetValue<FieldValues>;
 }
 
 export const CapabilityField = ({ field, errors, watch, setValue }: CapabilityFieldProps) => {

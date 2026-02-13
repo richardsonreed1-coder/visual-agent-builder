@@ -1,15 +1,12 @@
-import { UseFormWatch, UseFormSetValue, FieldErrors } from 'react-hook-form';
+import { UseFormWatch, UseFormSetValue, FieldErrors, FieldValues } from 'react-hook-form';
 import { FieldSchema } from '../schemas';
 import { Check, Lock } from 'lucide-react';
 
 interface CheckboxFieldProps {
   field: FieldSchema;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   errors: FieldErrors;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  watch: UseFormWatch<any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  setValue: UseFormSetValue<any>;
+  watch: UseFormWatch<FieldValues>;
+  setValue: UseFormSetValue<FieldValues>;
 }
 
 export const CheckboxField = ({ field, errors, watch, setValue }: CheckboxFieldProps) => {

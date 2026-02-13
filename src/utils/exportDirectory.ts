@@ -19,9 +19,9 @@ export interface DirectoryExportOptions {
 }
 
 // Generate MCP server JSON config
-const generateMcpServerEntry = (node: Node): Record<string, any> => {
+const generateMcpServerEntry = (node: Node): Record<string, unknown> => {
   const config = node.data.config as MCPServerConfig;
-  const entry: Record<string, any> = {
+  const entry: Record<string, unknown> = {
     command: config.command || 'npx',
     args: config.args || [],
   };
@@ -38,7 +38,7 @@ export const generateMcpJson = (nodes: Node[]): string => {
   const mcpNodes = getNodesByType(nodes, 'MCP_SERVER');
   if (mcpNodes.length === 0) return '';
 
-  const mcpServers: Record<string, any> = {};
+  const mcpServers: Record<string, unknown> = {};
 
   mcpNodes.forEach(node => {
     const name = (node.data.config as MCPServerConfig).name || node.data.label;
@@ -53,7 +53,7 @@ export const generateHooksJson = (nodes: Node[]): string => {
   const hookNodes = getNodesByType(nodes, 'HOOK');
   if (hookNodes.length === 0) return '';
 
-  const hooks: Record<string, any[]> = {};
+  const hooks: Record<string, Record<string, unknown>[]> = {};
 
   hookNodes.forEach(node => {
     const config = node.data.config as HookConfig;
@@ -63,7 +63,7 @@ export const generateHooksJson = (nodes: Node[]): string => {
       hooks[event] = [];
     }
 
-    const hookEntry: Record<string, any> = {
+    const hookEntry: Record<string, unknown> = {
       command: config.command || '',
     };
 
@@ -102,7 +102,7 @@ export const generateSettingsJson = (nodes: Node[]): string => {
     return config.permissionMode === 'bypassPermissions';
   });
 
-  const settings: Record<string, any> = {};
+  const settings: Record<string, unknown> = {};
 
   if (allTools.size > 0) {
     settings.allowedTools = Array.from(allTools);

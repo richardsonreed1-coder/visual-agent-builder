@@ -3,7 +3,7 @@
 // Integrates socket events with Zustand store for canvas manipulation
 // =============================================================================
 
-import { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Node, Edge } from 'reactflow';
 import { useSocket, UseSocketReturn } from './useSocket';
 import useStore from '../store/useStore';
@@ -139,9 +139,9 @@ export function useHeadlessSession(): UseHeadlessSessionReturn {
         ? {
             width: size.width,
             height: size.height,
-            ...(payload as any).style,
+            ...((payload as unknown as Record<string, unknown>).style as Record<string, unknown> | undefined),
           }
-        : (payload as any).style,
+        : (payload as unknown as Record<string, unknown>).style as React.CSSProperties | undefined,
     };
 
     // ✅ Phase 5 Fix: Use Zustand store's addNode for state management
@@ -189,7 +189,8 @@ export function useHeadlessSession(): UseHeadlessSessionReturn {
   // Phase 6.3 v4: Uses addEdge() which reads fresh state via get() inside store
   // This eliminates the stale closure bug when Builder creates many edges in rapid succession
   const handleEdgeCreated = useCallback((payload: CanvasEdgePayload) => {
-    const edgeType = (payload.edgeType || (payload.data as any)?.type || 'default').toLowerCase();
+    const rawEdgeType = (payload.edgeType || (payload.data as Record<string, unknown> | undefined)?.type || 'default') as string;
+    const edgeType = rawEdgeType.toLowerCase();
     const params = getEdgeParams(edgeType);
 
     const newEdge: Edge = {
