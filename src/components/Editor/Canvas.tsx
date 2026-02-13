@@ -18,12 +18,20 @@ import { CustomNode } from './Nodes/CustomNode';
 import { DepartmentNode } from './Nodes/DepartmentNode';
 import { AgentPoolNode } from './Nodes/AgentPoolNode';
 import { MCPServerNode } from './Nodes/MCPServerNode';
+import { NodeErrorBoundary } from './NodeErrorBoundary';
 import { DataEdge, ControlEdge, EventEdge, DelegationEdge, FailoverEdge, DefaultEdge } from './Edges';
 import { EdgeTypeSelector } from './EdgeTypeSelector';
 import { NodeType, EdgeType, isContainerType } from '../../types/core';
 import { Toolbar } from './Toolbar';
 import { fetchComponentContent, BundleData, BundleComponent } from '../../services/api';
 import { getEdgeParams } from '../../config/edgeConfig';
+
+// Valid node types for drag-data validation
+const VALID_NODE_TYPES = new Set<string>([
+  'AGENT', 'SKILL', 'PLUGIN', 'TOOL', 'PROVIDER',
+  'HOOK', 'COMMAND', 'REASONING', 'DEPARTMENT', 'AGENT_POOL', 'MCP_SERVER',
+  'BUNDLE',
+]);
 
 // Map bundle component categories to NodeTypes
 const categoryToNodeType: Record<string, NodeType> = {
@@ -51,12 +59,26 @@ const nodeTypeToComponent: Record<NodeType, string> = {
   MCP_SERVER: 'mcpServerNode',
 };
 
+// Wrap node components with error boundaries to prevent single-node crashes from taking down the canvas
+const WrappedCustomNode = (props: React.ComponentProps<typeof CustomNode>) => (
+  <NodeErrorBoundary nodeId={props.id}><CustomNode {...props} /></NodeErrorBoundary>
+);
+const WrappedDepartmentNode = (props: React.ComponentProps<typeof DepartmentNode>) => (
+  <NodeErrorBoundary nodeId={props.id}><DepartmentNode {...props} /></NodeErrorBoundary>
+);
+const WrappedAgentPoolNode = (props: React.ComponentProps<typeof AgentPoolNode>) => (
+  <NodeErrorBoundary nodeId={props.id}><AgentPoolNode {...props} /></NodeErrorBoundary>
+);
+const WrappedMCPServerNode = (props: React.ComponentProps<typeof MCPServerNode>) => (
+  <NodeErrorBoundary nodeId={props.id}><MCPServerNode {...props} /></NodeErrorBoundary>
+);
+
 // Define the node types map outside component to prevent re-creation
 const nodeTypes = {
-  customNode: CustomNode,
-  departmentNode: DepartmentNode,
-  agentPoolNode: AgentPoolNode,
-  mcpServerNode: MCPServerNode,
+  customNode: WrappedCustomNode,
+  departmentNode: WrappedDepartmentNode,
+  agentPoolNode: WrappedAgentPoolNode,
+  mcpServerNode: WrappedMCPServerNode,
 };
 
 // Define edge types map - keys must match semantic type returned by getEdgeParams()
@@ -128,7 +150,11 @@ const CanvasContent = forwardRef<CanvasHandle, CanvasContentProps>(({ onImportCl
       const bundleDataStr = event.dataTransfer.getData('application/bundledata');
       const repo = event.dataTransfer.getData('application/repo');
 
-      if (!type) {
+      // Validate drop data: type must be a known NodeType or BUNDLE
+      if (!type || !VALID_NODE_TYPES.has(type)) {
+        if (type) {
+          console.warn('[Canvas] Rejected drop with unknown type:', type);
+        }
         return;
       }
 
@@ -252,8 +278,23 @@ const CanvasContent = forwardRef<CanvasHandle, CanvasContentProps>(({ onImportCl
     setSelectedEdge(null);
   }, [setSelectedNode, setSelectedEdge]);
 
-  // Handle new connections - show edge type selector
+  // Handle new connections - validate and show edge type selector
   const handleConnect = useCallback((connection: Connection) => {
+    // Guard: reject self-connections
+    if (connection.source === connection.target) {
+      console.warn('[Canvas] Rejected self-connection on node:', connection.source);
+      return;
+    }
+
+    // Guard: reject duplicate edges between the same pair of nodes
+    const isDuplicate = edges.some(
+      e => e.source === connection.source && e.target === connection.target
+    );
+    if (isDuplicate) {
+      console.warn('[Canvas] Rejected duplicate edge:', connection.source, '->', connection.target);
+      return;
+    }
+
     // Find the target node to position the selector near it
     const targetNode = nodes.find(n => n.id === connection.target);
     if (targetNode && reactFlowInstance) {
