@@ -9,7 +9,7 @@ import { spawn } from 'child_process';
 import { emitExecutionLog } from '../socket/emitter';
 
 // Sandbox root directory (isolated from application code)
-const SANDBOX_ROOT = path.join(process.cwd(), 'sandbox');
+const SANDBOX_ROOT = process.env.SANDBOX_ROOT || path.join(process.cwd(), 'sandbox');
 
 // Current session ID for logging (set by execute command)
 let currentSessionId: string | null = null;
@@ -33,11 +33,16 @@ export interface ToolResult<T = unknown> {
 // -----------------------------------------------------------------------------
 
 function validatePath(relativePath: string): string {
+  // Reject null bytes (path traversal vector)
+  if (relativePath.includes('\0')) {
+    throw new Error('Access denied: invalid path');
+  }
+
   // Normalize and resolve the path
   const absolutePath = path.resolve(SANDBOX_ROOT, relativePath);
 
-  // Ensure path is within sandbox
-  if (!absolutePath.startsWith(SANDBOX_ROOT)) {
+  // Ensure path is within sandbox (use sep to prevent prefix collisions)
+  if (!absolutePath.startsWith(SANDBOX_ROOT + path.sep) && absolutePath !== SANDBOX_ROOT) {
     throw new Error('Access denied: path outside sandbox');
   }
 

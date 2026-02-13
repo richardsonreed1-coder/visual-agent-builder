@@ -147,16 +147,16 @@ export function emitError(code: string, message: string, details?: unknown): voi
 // Utility: Emit to specific session
 // -----------------------------------------------------------------------------
 
-export function emitToSession(
+export function emitToSession<E extends keyof ServerToClientEvents>(
   sessionId: string,
-  event: keyof ServerToClientEvents,
-  payload: unknown
+  event: E,
+  payload: Parameters<ServerToClientEvents[E]>[0]
 ): void {
   const server = getSocketServer();
   // Find sockets associated with this session
   server.sockets.sockets.forEach((socket) => {
     if (socket.data.sessionId === sessionId) {
-      (socket.emit as Function)(event, payload);
+      socket.emit(event, payload);
     }
   });
 }

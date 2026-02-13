@@ -862,36 +862,58 @@ export async function persistLayout(): Promise<void> {
 export async function loadPersistedLayout(): Promise<void> {
   try {
     const content = await fs.readFile(LAYOUT_FILE, 'utf-8');
-    const { nodes, edges } = JSON.parse(content);
+    const parsed = JSON.parse(content) as Record<string, unknown>;
+
+    // Validate structure before loading
+    if (!parsed || typeof parsed !== 'object') {
+      console.warn('[Canvas] Invalid layout file: not an object, starting fresh');
+      return;
+    }
+
+    const nodes = parsed.nodes;
+    const edges = parsed.edges;
+
+    if (!Array.isArray(nodes) || !Array.isArray(edges)) {
+      console.warn('[Canvas] Invalid layout file: missing nodes/edges arrays, starting fresh');
+      return;
+    }
 
     // Clear existing state
     canvasState.nodes.clear();
     canvasState.edges.clear();
 
-    // Load nodes
+    // Load nodes (skip malformed entries)
     for (const node of nodes) {
-      canvasState.nodes.set(node.id, {
-        id: node.id,
-        type: node.type,
-        label: node.label,
-        position: node.position,
-        parentId: node.parentId,
-        data: node.data || {},
+      if (!node || typeof node !== 'object' || typeof (node as Record<string, unknown>).id !== 'string') {
+        continue;
+      }
+      const n = node as Record<string, unknown>;
+      canvasState.nodes.set(n.id as string, {
+        id: n.id as string,
+        type: (n.type as string) || 'AGENT',
+        label: (n.label as string) || (n.id as string),
+        position: (n.position as { x: number; y: number }) || { x: 0, y: 0 },
+        parentId: n.parentId as string | undefined,
+        data: (n.data as Record<string, unknown>) || {},
       });
     }
 
-    // Load edges
+    // Load edges (skip malformed entries)
     for (const edge of edges) {
-      canvasState.edges.set(edge.id, {
-        id: edge.id,
-        sourceId: edge.sourceId,
-        targetId: edge.targetId,
-        edgeType: edge.edgeType,
-        data: edge.data,
+      if (!edge || typeof edge !== 'object' || typeof (edge as Record<string, unknown>).id !== 'string') {
+        continue;
+      }
+      const e = edge as Record<string, unknown>;
+      canvasState.edges.set(e.id as string, {
+        id: e.id as string,
+        sourceId: (e.sourceId as string) || '',
+        targetId: (e.targetId as string) || '',
+        edgeType: e.edgeType as string | undefined,
+        data: e.data as Record<string, unknown> | undefined,
       });
     }
 
-    console.log(`[Canvas] Loaded ${nodes.length} nodes, ${edges.length} edges from layout.json`);
+    console.log(`[Canvas] Loaded ${canvasState.nodes.size} nodes, ${canvasState.edges.size} edges from layout.json`);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       console.log('[Canvas] No persisted layout found, starting fresh');
