@@ -1,6 +1,6 @@
 // =============================================================================
 // Supervisor Agent
-// Routes user intents using Gemini 3 Pro for fast classification
+// Routes user intents using Gemini 2.0 Flash for fast classification
 // =============================================================================
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -12,6 +12,7 @@ import { SessionMessage, SessionState } from '../../shared/socket-events';
 import { createArchitectAgent } from './architect';
 import { createBuilderAgent, BuilderAgent } from './builder';
 import { canvas_get_state } from '../mcp/canvas-mcp';
+import { IntentClassificationError } from '../types/errors';
 
 // -----------------------------------------------------------------------------
 // Configuration
@@ -147,19 +148,29 @@ export class SupervisorAgent {
 
         const response = result.response.text();
 
-        // Parse JSON response
+        // Parse JSON response — safely extract and validate
         const jsonMatch = response.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
+          const parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+          const validTypes: IntentType[] = ['BUILD', 'EDIT', 'QUERY', 'EXPORT', 'CONFIGURE', 'UNKNOWN'];
+          const parsedType = typeof parsed.type === 'string' ? parsed.type.toUpperCase() : 'UNKNOWN';
+
           return {
-            type: parsed.type as IntentType,
-            confidence: parsed.confidence || 0.8,
-            entities: parsed.entities,
-            rawIntent: parsed.rawIntent || message,
+            type: validTypes.includes(parsedType as IntentType)
+              ? (parsedType as IntentType)
+              : 'UNKNOWN',
+            confidence: typeof parsed.confidence === 'number'
+              ? Math.max(0, Math.min(1, parsed.confidence))
+              : 0.8,
+            entities: parsed.entities as DetectedIntent['entities'],
+            rawIntent: typeof parsed.rawIntent === 'string' ? parsed.rawIntent : message,
           };
         }
       } catch (error) {
-        console.warn('[Supervisor] Gemini classification failed, using fallback:', error);
+        console.warn(
+          '[Supervisor] Gemini classification failed, using fallback:',
+          error instanceof Error ? error.message : error
+        );
       }
     }
 

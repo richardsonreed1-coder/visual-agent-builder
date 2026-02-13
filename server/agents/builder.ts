@@ -251,7 +251,7 @@ export class BuilderAgent {
 
   private async executeAction(
     action: ExecutionAction
-  ): Promise<{ success: boolean; data?: any; error?: string }> {
+  ): Promise<{ success: boolean; data?: Record<string, unknown>; error?: string }> {
     switch (action.type) {
       case 'CREATE_NODE': {
         const nodeAction = action as CreateNodeAction;
@@ -346,11 +346,13 @@ export class BuilderAgent {
         };
       }
 
-      default:
+      default: {
+        const unknownAction = action as { type: string };
         return {
           success: false,
-          error: `Unknown action type: ${(action as any).type}`,
+          error: `Unknown action type: ${unknownAction.type}`,
         };
+      }
     }
   }
 

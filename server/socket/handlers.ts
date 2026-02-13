@@ -5,7 +5,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { TypedSocket, TypedSocketServer } from './emitter';
-import { SessionMessage } from '../../shared/socket-events';
+import { SessionMessage, CanvasEdgeUpdatePayload } from '../../shared/socket-events';
 import { Session } from '../types/session';
 import { createSupervisorAgent, SupervisorAgent } from '../agents/supervisor';
 import { canvas_sync_from_client, canvasState, persistLayout } from '../mcp/canvas-mcp';
@@ -19,9 +19,44 @@ const sessions = new Map<string, Session>();
 // Active supervisor agents per session
 const supervisors = new Map<string, SupervisorAgent>();
 
-/**
- * Create a new session
- */
+// -----------------------------------------------------------------------------
+// Helper: safely extract string/number/object from unknown values
+// -----------------------------------------------------------------------------
+
+interface ReactFlowNode {
+  id: string;
+  type?: string;
+  position: { x: number; y: number };
+  parentId?: string;
+  data?: Record<string, unknown>;
+}
+
+interface ReactFlowEdge {
+  id: string;
+  source: string;
+  target: string;
+  type?: string;
+  data?: Record<string, unknown>;
+}
+
+function asReactFlowNode(val: unknown): ReactFlowNode | null {
+  if (!val || typeof val !== 'object') return null;
+  const obj = val as Record<string, unknown>;
+  if (typeof obj.id !== 'string') return null;
+  return obj as unknown as ReactFlowNode;
+}
+
+function asReactFlowEdge(val: unknown): ReactFlowEdge | null {
+  if (!val || typeof val !== 'object') return null;
+  const obj = val as Record<string, unknown>;
+  if (typeof obj.id !== 'string') return null;
+  return obj as unknown as ReactFlowEdge;
+}
+
+// -----------------------------------------------------------------------------
+// Session Management
+// -----------------------------------------------------------------------------
+
 function createSession(): Session {
   const sessionId = uuidv4();
   const session: Session = {
@@ -36,16 +71,10 @@ function createSession(): Session {
   return session;
 }
 
-/**
- * Get a session by ID
- */
 export function getSession(sessionId: string): Session | undefined {
   return sessions.get(sessionId);
 }
 
-/**
- * Update session state
- */
 export function updateSessionState(
   sessionId: string,
   state: Session['state']
@@ -57,9 +86,6 @@ export function updateSessionState(
   }
 }
 
-/**
- * Add message to session
- */
 export function addSessionMessage(
   sessionId: string,
   message: SessionMessage
@@ -71,9 +97,10 @@ export function addSessionMessage(
   }
 }
 
-/**
- * Set up socket event handlers
- */
+// -----------------------------------------------------------------------------
+// Socket Handler Setup
+// -----------------------------------------------------------------------------
+
 export function setupSocketHandlers(io: TypedSocketServer): void {
   io.on('connection', (socket: TypedSocket) => {
     console.log(`[Socket] Client connected: ${socket.id}`);
@@ -99,7 +126,6 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
         return;
       }
 
-      // Add user message to session
       const userMessage: SessionMessage = {
         id: uuidv4(),
         role: 'user',
@@ -107,18 +133,14 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
         timestamp: Date.now(),
       };
       addSessionMessage(sessionId, userMessage);
-
-      // Emit message back to confirm receipt
       socket.emit('session:message', { sessionId, message: userMessage });
 
-      // Get or create supervisor agent for this session
       let supervisor = supervisors.get(sessionId);
       if (!supervisor) {
         supervisor = createSupervisorAgent(sessionId);
         supervisors.set(sessionId, supervisor);
       }
 
-      // Route to Supervisor agent
       try {
         await supervisor.processMessage(content, session);
       } catch (error) {
@@ -136,12 +158,13 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
       const session = sessions.get(sessionId);
 
       if (session) {
+        const previousState = session.state;
         session.state = 'idle';
         session.updatedAt = Date.now();
         socket.emit('session:stateChange', {
           sessionId,
           state: 'idle',
-          previousState: session.state,
+          previousState,
         });
         console.log(`[Socket] Session cancelled: ${sessionId}`);
       }
@@ -156,7 +179,6 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
         session.state = 'paused';
         session.updatedAt = Date.now();
 
-        // Pause the supervisor agent
         const supervisor = supervisors.get(sessionId);
         supervisor?.pause();
 
@@ -178,7 +200,6 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
         session.state = 'executing';
         session.updatedAt = Date.now();
 
-        // Resume the supervisor agent
         const supervisor = supervisors.get(sessionId);
         supervisor?.resume();
 
@@ -194,41 +215,47 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
     // Handle canvas sync from client
     socket.on('canvas:sync', (payload) => {
       const sessionId = socket.data.sessionId;
-      if (sessionId) {
-        const session = sessions.get(sessionId);
-        if (session) {
-          session.canvasSnapshot = {
-            nodes: payload.nodes,
-            edges: payload.edges,
-          };
-          session.updatedAt = Date.now();
+      if (!sessionId) return;
 
-          // Sync to MCP canvas state
-          const nodes = (payload.nodes as any[]).map((n: any) => ({
-            id: n.id,
-            type: n.data?.nodeType?.toLowerCase() || 'agent',
-            label: n.data?.label || n.id,
-            position: n.position,
-            parentId: n.parentId,
-            data: n.data,
-          }));
+      const session = sessions.get(sessionId);
+      if (!session) return;
 
-          const edges = (payload.edges as any[]).map((e: any) => ({
-            id: e.id,
-            sourceId: e.source,
-            targetId: e.target,
-            edgeType: e.type || e.data?.edgeType,
-            data: e.data,
-          }));
+      session.canvasSnapshot = {
+        nodes: payload.nodes,
+        edges: payload.edges,
+      };
+      session.updatedAt = Date.now();
 
-          canvas_sync_from_client(nodes, edges);
-          console.log(`[Socket] Canvas synced for session: ${sessionId}`);
-        }
-      }
+      // Map React Flow format to canvas MCP format
+      const nodes = (payload.nodes as unknown[])
+        .map(asReactFlowNode)
+        .filter((n): n is ReactFlowNode => n !== null)
+        .map((n) => ({
+          id: n.id,
+          type: (n.data?.nodeType as string)?.toLowerCase() || 'agent',
+          label: (n.data?.label as string) || n.id,
+          position: n.position,
+          parentId: n.parentId,
+          data: n.data || {},
+        }));
+
+      const edges = (payload.edges as unknown[])
+        .map(asReactFlowEdge)
+        .filter((e): e is ReactFlowEdge => e !== null)
+        .map((e) => ({
+          id: e.id,
+          sourceId: e.source,
+          targetId: e.target,
+          edgeType: e.type || (e.data?.edgeType as string | undefined),
+          data: e.data,
+        }));
+
+      canvas_sync_from_client(nodes, edges);
+      console.log(`[Socket] Canvas synced for session: ${sessionId}`);
     });
 
-    // Phase 6 → Phase 7: Handle system start (real orchestrator execution)
-    socket.on('system:start' as any, async (payload: any) => {
+    // Handle system start (real orchestrator execution)
+    socket.on('system:start', async (payload) => {
       const { sessionId, nodes, edges, brief } = payload;
 
       if (!sessionId) {
@@ -242,20 +269,26 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
       console.log(`[Socket] System start requested for session: ${sessionId}`);
 
       // Map node data for validation
-      const nodeInfos = (nodes as any[]).map((n: any) => ({
-        id: n.id,
-        type: n.data?.type || n.type || 'UNKNOWN',
-        label: n.data?.label || n.id,
-      }));
+      const nodeInfos = (nodes as unknown[])
+        .map(asReactFlowNode)
+        .filter((n): n is ReactFlowNode => n !== null)
+        .map((n) => ({
+          id: n.id,
+          type: (n.data?.type as string) || n.type || 'UNKNOWN',
+          label: (n.data?.label as string) || n.id,
+        }));
 
-      const edgeInfos = (edges as any[]).map((e: any) => ({
-        id: e.id,
-        sourceId: e.source,
-        targetId: e.target,
-        edgeType: e.type || e.data?.edgeType || e.data?.type,
-      }));
+      const edgeInfos = (edges as unknown[])
+        .map(asReactFlowEdge)
+        .filter((e): e is ReactFlowEdge => e !== null)
+        .map((e) => ({
+          id: e.id,
+          sourceId: e.source,
+          targetId: e.target,
+          edgeType: e.type || (e.data?.edgeType as string | undefined) || (e.data?.type as string | undefined),
+        }));
 
-      // Step 1: Pre-flight validation (kept from runtime.ts)
+      // Pre-flight validation
       emitExecutionLog(sessionId, '[PRE-FLIGHT] Validating workflow graph...');
       const validation = validateSystem(nodeInfos, edgeInfos);
 
@@ -264,11 +297,7 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
           emitExecutionLog(sessionId, `ERROR: ${err}`, 'stderr')
         );
         emitExecutionLog(sessionId, '');
-        emitExecutionLog(
-          sessionId,
-          'Validation failed. Fix errors before running.',
-          'stderr'
-        );
+        emitExecutionLog(sessionId, 'Validation failed. Fix errors before running.', 'stderr');
         return;
       }
 
@@ -283,12 +312,11 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
       );
       emitExecutionLog(sessionId, '');
 
-      // Step 2: Execute via real orchestrator engine
+      // Execute via real orchestrator engine
       try {
-        await executeWorkflow(sessionId, nodes as any[], edges as any[], brief);
+        await executeWorkflow(sessionId, nodes as unknown[], edges as unknown[], brief);
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         emitExecutionLog(sessionId, `Runtime error: ${errorMessage}`, 'stderr');
         socket.emit('error', {
           code: 'RUNTIME_ERROR',
@@ -297,15 +325,15 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
       }
     });
 
-    // Phase 6 → Phase 7: Handle system stop (cancels real execution)
-    socket.on('system:stop' as any, (payload: any) => {
+    // Handle system stop
+    socket.on('system:stop', (payload) => {
       const { sessionId } = payload;
       console.log(`[Socket] System stop requested for session: ${sessionId}`);
       stopExecution(sessionId);
     });
 
     // Handle fixer:start — standalone Claude call for configuration fixes
-    socket.on('fixer:start' as any, async (payload: any) => {
+    socket.on('fixer:start', async (payload) => {
       const { sessionId, prompt } = payload;
 
       if (!sessionId) {
@@ -329,8 +357,7 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
       try {
         await executeFixerAgent(sessionId, prompt);
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         emitExecutionLog(sessionId, `Fixer error: ${errorMessage}`, 'stderr');
         socket.emit('error', {
           code: 'FIXER_ERROR',
@@ -339,18 +366,17 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
       }
     });
 
-    // Handle fixer:stop — cancel fixer execution
-    socket.on('fixer:stop' as any, (payload: any) => {
+    // Handle fixer:stop
+    socket.on('fixer:stop', (payload) => {
       const { sessionId } = payload;
       console.log(`[Socket] Fixer stop requested for session: ${sessionId}`);
       stopExecution(sessionId);
     });
 
-    // Phase 6.3: Handle edge type update from Properties Panel
-    socket.on('canvas:update_edge' as any, async (payload: { edgeId: string; changes: { data?: Record<string, unknown> } }) => {
+    // Handle edge type update from Properties Panel
+    socket.on('canvas:update_edge', async (payload: CanvasEdgeUpdatePayload) => {
       const { edgeId, changes } = payload;
 
-      // 1. Update In-Memory State
       const edge = canvasState.edges.get(edgeId);
       if (edge) {
         if (changes.data) {
@@ -358,7 +384,6 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
         }
         canvasState.edges.set(edgeId, edge);
 
-        // 2. Persist to Disk (layout.json)
         await persistLayout();
         console.log(`[Socket] Updated edge ${edgeId} type to: ${changes.data?.type}`);
       } else {
@@ -369,7 +394,6 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
     // Handle disconnect
     socket.on('disconnect', (reason) => {
       console.log(`[Socket] Client disconnected: ${socket.id}, reason: ${reason}`);
-      // Note: We don't delete the session on disconnect to allow reconnection
     });
   });
 }

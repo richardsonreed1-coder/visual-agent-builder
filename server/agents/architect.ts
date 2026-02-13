@@ -15,6 +15,7 @@ import {
 import { emitSessionMessage } from '../socket/emitter';
 import { SessionMessage } from '../../shared/socket-events';
 import { smartGenerate } from '../lib/anthropic-client';
+import { PlanGenerationError } from '../types/errors';
 
 // -----------------------------------------------------------------------------
 // System Prompt for Architect
