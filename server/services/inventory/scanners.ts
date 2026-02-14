@@ -17,6 +17,7 @@ import {
   TYPE_TO_NODE_TYPE,
 } from './config';
 import { parseReadme, parseComponentFile, parseAwesomeMcpList } from './parsers';
+import { getCachedInventory, setCachedInventory } from './cache';
 
 /**
  * Scan a directory where each subdirectory is an MCP server
@@ -255,9 +256,21 @@ async function scanPluginBundles(): Promise<InventoryItem[]> {
 }
 
 /**
- * Scan all configured repos and build the full inventory tree
+ * Scan all configured repos and build the full inventory tree.
+ * Results are cached with a configurable TTL (default 5 min, env INVENTORY_CACHE_TTL_MS).
+ * Subsequent calls within the TTL window return the cached result without hitting the filesystem.
  */
 export const scanInventory = async (): Promise<InventoryItem[]> => {
+  const cached = getCachedInventory();
+  if (cached) return cached;
+
+  const result = await scanInventoryUncached();
+  setCachedInventory(result);
+  return result;
+};
+
+/** The actual filesystem scan — always runs, no cache. */
+async function scanInventoryUncached(): Promise<InventoryItem[]> {
   // Map: type -> repo -> category -> components
   const typeMap = new Map<string, Map<string, Map<string, ComponentInfo[]>>>();
 
@@ -417,4 +430,4 @@ export const scanInventory = async (): Promise<InventoryItem[]> => {
   tree.sort((a, b) => a.name.localeCompare(b.name));
 
   return tree;
-};
+}
