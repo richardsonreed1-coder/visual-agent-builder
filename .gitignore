@@ -32,6 +32,9 @@ yarn-error.log*
 *.sqlite
 *.sqlite3
 
+# Session data
+server/data/
+
 # Testing
 coverage/
 
