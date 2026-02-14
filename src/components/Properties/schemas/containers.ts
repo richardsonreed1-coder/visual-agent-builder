@@ -1,0 +1,141 @@
+import type { NodeTypeSchema } from './types';
+import {
+  commonSections,
+  identityFields,
+  departmentColorOptions,
+  loadBalancingOptions,
+} from './constants';
+
+// ============================================================================
+// Container Node Schemas: DEPARTMENT, AGENT_POOL
+// ============================================================================
+
+export const departmentSchema: NodeTypeSchema = {
+  type: 'DEPARTMENT',
+  displayName: 'Department',
+  icon: 'Building2',
+  color: 'text-orange-600',
+  bgColor: 'bg-orange-50',
+  borderColor: 'border-orange-500',
+  isContainer: true,
+  sections: [
+    ...commonSections,
+    { id: 'config', label: 'Configuration', icon: 'Settings', defaultOpen: true, collapsible: true },
+  ],
+  fields: [
+    ...identityFields,
+    {
+      key: 'color',
+      label: 'Theme Color',
+      type: 'select',
+      section: 'config',
+      options: departmentColorOptions,
+      defaultValue: 'slate',
+    },
+    {
+      key: 'priority',
+      label: 'Priority',
+      type: 'slider',
+      section: 'config',
+      description: 'Higher priority departments are processed first',
+      defaultValue: 5,
+      validation: { min: 1, max: 10 },
+    },
+  ],
+};
+
+export const agentPoolSchema: NodeTypeSchema = {
+  type: 'AGENT_POOL',
+  displayName: 'Agent Pool',
+  icon: 'Users',
+  color: 'text-teal-600',
+  bgColor: 'bg-teal-50',
+  borderColor: 'border-teal-500',
+  isContainer: true,
+  sections: [
+    ...commonSections,
+    { id: 'scaling', label: 'Scaling', icon: 'TrendingUp', defaultOpen: true, collapsible: true },
+    { id: 'behavior', label: 'Behavior', icon: 'Sliders', defaultOpen: false, collapsible: true },
+    { id: 'resilience', label: 'Resilience', icon: 'Shield', defaultOpen: false, collapsible: true },
+  ],
+  fields: [
+    ...identityFields,
+    {
+      key: 'scaling.minInstances',
+      label: 'Min Instances',
+      type: 'number',
+      section: 'scaling',
+      placeholder: '1',
+      defaultValue: 1,
+      validation: { min: 0, max: 100 },
+      width: 'half',
+    },
+    {
+      key: 'scaling.maxInstances',
+      label: 'Max Instances',
+      type: 'number',
+      section: 'scaling',
+      placeholder: '10',
+      defaultValue: 10,
+      validation: { min: 1, max: 100 },
+      width: 'half',
+    },
+    {
+      key: 'scaling.concurrency',
+      label: 'Concurrency',
+      type: 'number',
+      section: 'scaling',
+      description: 'Max concurrent requests per instance',
+      placeholder: '5',
+      defaultValue: 5,
+      validation: { min: 1, max: 50 },
+      width: 'half',
+    },
+    {
+      key: 'scaling.scaleUpThreshold',
+      label: 'Scale Up Threshold (%)',
+      type: 'slider',
+      section: 'scaling',
+      description: 'Utilization % to trigger scale up',
+      defaultValue: 80,
+      validation: { min: 50, max: 100 },
+      width: 'half',
+    },
+    {
+      key: 'loadBalancing',
+      label: 'Load Balancing',
+      type: 'select',
+      section: 'behavior',
+      options: loadBalancingOptions,
+      defaultValue: 'round-robin',
+    },
+    {
+      key: 'timeout',
+      label: 'Timeout (seconds)',
+      type: 'number',
+      section: 'behavior',
+      placeholder: '300',
+      defaultValue: 300,
+      validation: { min: 10, max: 3600 },
+      width: 'half',
+    },
+    {
+      key: 'rateLimit',
+      label: 'Rate Limit (req/min)',
+      type: 'number',
+      section: 'behavior',
+      placeholder: '100',
+      defaultValue: 100,
+      validation: { min: 1, max: 10000 },
+      width: 'half',
+    },
+    {
+      key: 'failoverChain',
+      label: 'Failover Chain',
+      type: 'chips',
+      section: 'resilience',
+      description: 'Ordered list of backup pool names',
+      placeholder: 'Add backup pool...',
+    },
+  ],
+};
