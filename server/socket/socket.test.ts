@@ -60,8 +60,6 @@ import {
 } from '../socket/emitter';
 import { canvas_sync_from_client } from '../mcp/canvas';
 
-const mockedCanvasSyncFromClient = vi.mocked(canvas_sync_from_client);
-
 // =============================================================================
 // Tests: Session Management (from handlers.ts)
 // =============================================================================
@@ -215,7 +213,7 @@ describe('setupSocketHandlers', () => {
         edges: [{ id: 'e1', source: 'n1', target: 'n2' }],
       });
 
-      expect(mockedCanvasSyncFromClient).toHaveBeenCalled();
+      expect(canvas_sync_from_client).toHaveBeenCalled();
     });
   });
 

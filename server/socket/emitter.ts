@@ -150,13 +150,13 @@ export function emitError(code: string, message: string, details?: unknown): voi
 export function emitToSession<E extends keyof ServerToClientEvents>(
   sessionId: string,
   event: E,
-  payload: Parameters<ServerToClientEvents[E]>[0]
+  ...args: Parameters<ServerToClientEvents[E]>
 ): void {
   const server = getSocketServer();
   // Find sockets associated with this session
   server.sockets.sockets.forEach((socket) => {
     if (socket.data.sessionId === sessionId) {
-      socket.emit(event, payload);
+      socket.emit(event, ...args);
     }
   });
 }
