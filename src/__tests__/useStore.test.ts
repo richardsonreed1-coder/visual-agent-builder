@@ -484,7 +484,7 @@ describe('Configure Wizard & Fixer', () => {
   it('setConfigureWizardCache should store cache', () => {
     act(() => {
       useStore.getState().setConfigureWizardCache({
-        phase: 'scan',
+        phase: 'workflow-scan',
         workflowAnalysis: null,
         nodeSteps: [],
         currentIndex: 0,
@@ -494,7 +494,7 @@ describe('Configure Wizard & Fixer', () => {
     });
 
     expect(useStore.getState().configureWizardCache).not.toBeNull();
-    expect(useStore.getState().configureWizardCache!.phase).toBe('scan');
+    expect(useStore.getState().configureWizardCache!.phase).toBe('workflow-scan');
   });
 
   it('setFixerRunning should update fixer state', () => {

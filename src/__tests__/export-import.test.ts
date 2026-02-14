@@ -177,8 +177,8 @@ describe('ID Remapping', () => {
 
   it('buildIdRemapTable should create unique IDs for all nodes', () => {
     const nodes: ExportVisualNode[] = [
-      { id: 'a', position: { x: 0, y: 0 }, data: { label: 'A', type: 'AGENT' } },
-      { id: 'b', position: { x: 0, y: 0 }, data: { label: 'B', type: 'AGENT' } },
+      { id: 'a', position: { x: 0, y: 0 }, data: { label: 'A', type: 'AGENT', config: {} } },
+      { id: 'b', position: { x: 0, y: 0 }, data: { label: 'B', type: 'AGENT', config: {} } },
     ];
 
     const remap = buildIdRemapTable(nodes);
@@ -190,8 +190,8 @@ describe('ID Remapping', () => {
 
   it('remapNodeIds should update node and parent IDs', () => {
     const nodes: ExportVisualNode[] = [
-      { id: 'parent', position: { x: 0, y: 0 }, data: { label: 'P', type: 'DEPARTMENT' } },
-      { id: 'child', parentId: 'parent', position: { x: 0, y: 0 }, data: { label: 'C', type: 'AGENT' } },
+      { id: 'parent', position: { x: 0, y: 0 }, data: { label: 'P', type: 'DEPARTMENT', config: {} } },
+      { id: 'child', parentId: 'parent', position: { x: 0, y: 0 }, data: { label: 'C', type: 'AGENT', config: {} } },
     ];
 
     const remap = new Map([['parent', 'new-parent'], ['child', 'new-child']]);
@@ -223,8 +223,8 @@ describe('ID Remapping', () => {
 describe('Bounding Box', () => {
   it('should calculate correct bounding box', () => {
     const nodes: ExportVisualNode[] = [
-      { id: 'a', position: { x: 100, y: 50 }, data: { label: 'A', type: 'AGENT' } },
-      { id: 'b', position: { x: 400, y: 300 }, data: { label: 'B', type: 'AGENT' } },
+      { id: 'a', position: { x: 100, y: 50 }, data: { label: 'A', type: 'AGENT', config: {} } },
+      { id: 'b', position: { x: 400, y: 300 }, data: { label: 'B', type: 'AGENT', config: {} } },
     ];
 
     const bbox = calculateBoundingBox(nodes);
@@ -244,8 +244,8 @@ describe('Bounding Box', () => {
 
   it('should skip child nodes for bounding box', () => {
     const nodes: ExportVisualNode[] = [
-      { id: 'parent', position: { x: 0, y: 0 }, data: { label: 'P', type: 'DEPARTMENT' }, style: { width: 400, height: 300 } },
-      { id: 'child', parentId: 'parent', position: { x: 1000, y: 1000 }, data: { label: 'C', type: 'AGENT' } },
+      { id: 'parent', position: { x: 0, y: 0 }, data: { label: 'P', type: 'DEPARTMENT', config: {} }, style: { width: 400, height: 300 } },
+      { id: 'child', parentId: 'parent', position: { x: 1000, y: 1000 }, data: { label: 'C', type: 'AGENT', config: {} } },
     ];
 
     const bbox = calculateBoundingBox(nodes);
@@ -262,8 +262,8 @@ describe('Bounding Box', () => {
 describe('Offset Positioning', () => {
   it('should center nodes at target position', () => {
     const nodes: ExportVisualNode[] = [
-      { id: 'a', position: { x: 0, y: 0 }, data: { label: 'A', type: 'AGENT' } },
-      { id: 'b', position: { x: 200, y: 0 }, data: { label: 'B', type: 'AGENT' } },
+      { id: 'a', position: { x: 0, y: 0 }, data: { label: 'A', type: 'AGENT', config: {} } },
+      { id: 'b', position: { x: 200, y: 0 }, data: { label: 'B', type: 'AGENT', config: {} } },
     ];
 
     // Bounding box center: ((0 + 200+200)/2, (0 + 0+80)/2) = (200, 40)
@@ -278,8 +278,8 @@ describe('Offset Positioning', () => {
 
   it('should not offset child nodes', () => {
     const nodes: ExportVisualNode[] = [
-      { id: 'parent', position: { x: 0, y: 0 }, data: { label: 'P', type: 'DEPARTMENT' }, style: { width: 200, height: 200 } },
-      { id: 'child', parentId: 'parent', position: { x: 20, y: 30 }, data: { label: 'C', type: 'AGENT' } },
+      { id: 'parent', position: { x: 0, y: 0 }, data: { label: 'P', type: 'DEPARTMENT', config: {} }, style: { width: 200, height: 200 } },
+      { id: 'child', parentId: 'parent', position: { x: 20, y: 30 }, data: { label: 'C', type: 'AGENT', config: {} } },
     ];
 
     const offset = offsetNodesToPosition(nodes, 1000, 1000);
