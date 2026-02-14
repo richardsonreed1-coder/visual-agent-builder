@@ -17,7 +17,7 @@ import {
   FlattenedItem,
 } from '../services/inventory';
 import { initSocketEmitter, TypedSocketServer } from '../socket/emitter';
-import { setupSocketHandlers } from '../socket/handlers';
+import { setupSocketHandlers, flushSessions } from '../socket/handlers';
 import {
   ServerToClientEvents,
   ClientToServerEvents,
@@ -25,7 +25,7 @@ import {
   SocketData,
 } from '../../shared/socket-events';
 import { initializeSandbox } from '../mcp/sandbox-mcp';
-import { loadPersistedLayout } from '../mcp/canvas-mcp';
+import { loadPersistedLayout } from '../mcp/canvas';
 import { startSkillWatcher, capabilityRegistry } from '../watcher/skill-watcher';
 import { createSupervisorAgent } from '../agents/supervisor';
 import { getSession } from '../socket/handlers';
@@ -391,6 +391,9 @@ app.use(errorHandler);
 
 function gracefulShutdown(signal: string): void {
   console.log(`\n[Server] Received ${signal}. Shutting down gracefully...`);
+
+  // Flush session data to disk before exiting
+  flushSessions();
 
   httpServer.close(() => {
     console.log('[Server] HTTP server closed');

@@ -36,7 +36,7 @@ import {
   canvas_update_property,
   canvas_delete_node,
   CANVAS_TOOLS,
-} from '../mcp/canvas-mcp';
+} from '../mcp/canvas';
 
 // Sandbox MCP tools
 import {

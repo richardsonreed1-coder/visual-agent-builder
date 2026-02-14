@@ -11,7 +11,7 @@ import { emitSessionMessage, emitSessionStateChange } from '../socket/emitter';
 import { SessionMessage, SessionState } from '../../shared/socket-events';
 import { createArchitectAgent } from './architect';
 import { createBuilderAgent, BuilderAgent } from './builder';
-import { canvas_get_state } from '../mcp/canvas-mcp';
+import { canvas_get_state } from '../mcp/canvas';
 import { IntentClassificationError } from '../types/errors';
 
 // -----------------------------------------------------------------------------

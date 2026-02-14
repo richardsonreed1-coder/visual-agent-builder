@@ -15,7 +15,7 @@ vi.mock('../agents/supervisor', () => ({
   SupervisorAgent: vi.fn(),
 }));
 
-vi.mock('../mcp/canvas-mcp', () => ({
+vi.mock('../mcp/canvas', () => ({
   canvas_sync_from_client: vi.fn(),
   canvasState: {
     edges: new Map(),
@@ -58,7 +58,7 @@ import {
   emitExecutionLog,
   emitError,
 } from '../socket/emitter';
-import { canvas_sync_from_client } from '../mcp/canvas-mcp';
+import { canvas_sync_from_client } from '../mcp/canvas';
 
 const mockedCanvasSyncFromClient = vi.mocked(canvas_sync_from_client);
 

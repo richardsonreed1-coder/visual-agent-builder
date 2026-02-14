@@ -8,13 +8,14 @@ import { TypedSocket, TypedSocketServer } from './emitter';
 import { SessionMessage, CanvasEdgeUpdatePayload } from '../../shared/socket-events';
 import { Session } from '../types/session';
 import { createSupervisorAgent, SupervisorAgent } from '../agents/supervisor';
-import { canvas_sync_from_client, canvasState, persistLayout } from '../mcp/canvas-mcp';
+import { canvas_sync_from_client, canvasState, persistLayout } from '../mcp/canvas';
 import { validateSystem } from '../services/runtime';
 import { executeWorkflow, executeFixerAgent, stopExecution } from '../services/orchestrator-bridge';
 import { emitExecutionLog } from './emitter';
+import { getSessionStore, FileSessionStore } from '../services/session-store';
 
-// In-memory session store (will be replaced with proper store later)
-const sessions = new Map<string, Session>();
+// File-backed session store — survives server restarts
+const sessions: FileSessionStore = getSessionStore();
 
 // Active supervisor agents per session
 const supervisors = new Map<string, SupervisorAgent>();
@@ -79,22 +80,19 @@ export function updateSessionState(
   sessionId: string,
   state: Session['state']
 ): void {
-  const session = sessions.get(sessionId);
-  if (session) {
-    session.state = state;
-    session.updatedAt = Date.now();
-  }
+  sessions.updateState(sessionId, state);
 }
 
 export function addSessionMessage(
   sessionId: string,
   message: SessionMessage
 ): void {
-  const session = sessions.get(sessionId);
-  if (session) {
-    session.messages.push(message);
-    session.updatedAt = Date.now();
-  }
+  sessions.addMessage(sessionId, message);
+}
+
+/** Flush session data to disk (call during graceful shutdown) */
+export function flushSessions(): void {
+  sessions.flush();
 }
 
 // -----------------------------------------------------------------------------
@@ -159,8 +157,7 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
 
       if (session) {
         const previousState = session.state;
-        session.state = 'idle';
-        session.updatedAt = Date.now();
+        sessions.updateState(sessionId, 'idle');
         socket.emit('session:stateChange', {
           sessionId,
           state: 'idle',
@@ -176,8 +173,7 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
       const session = sessions.get(sessionId);
 
       if (session && session.state === 'executing') {
-        session.state = 'paused';
-        session.updatedAt = Date.now();
+        sessions.updateState(sessionId, 'paused');
 
         const supervisor = supervisors.get(sessionId);
         supervisor?.pause();
@@ -197,8 +193,7 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
       const session = sessions.get(sessionId);
 
       if (session && session.state === 'paused') {
-        session.state = 'executing';
-        session.updatedAt = Date.now();
+        sessions.updateState(sessionId, 'executing');
 
         const supervisor = supervisors.get(sessionId);
         supervisor?.resume();
@@ -225,6 +220,8 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
         edges: payload.edges,
       };
       session.updatedAt = Date.now();
+      // Re-set to trigger persistence
+      sessions.set(sessionId, session);
 
       // Map React Flow format to canvas MCP format
       const nodes = (payload.nodes as unknown[])
@@ -314,7 +311,7 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
 
       // Execute via real orchestrator engine
       try {
-        await executeWorkflow(sessionId, nodes as unknown[], edges as unknown[], brief);
+        await executeWorkflow(sessionId, nodes as Parameters<typeof executeWorkflow>[1], edges as Parameters<typeof executeWorkflow>[2], brief);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         emitExecutionLog(sessionId, `Runtime error: ${errorMessage}`, 'stderr');

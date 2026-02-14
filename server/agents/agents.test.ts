@@ -18,7 +18,7 @@ vi.mock('../socket/emitter', () => ({
 }));
 
 // Mock canvas MCP
-vi.mock('../mcp/canvas-mcp', () => ({
+vi.mock('../mcp/canvas', () => ({
   canvas_get_state: vi.fn().mockReturnValue({
     success: true,
     data: { nodes: [], edges: [] },
@@ -43,6 +43,7 @@ vi.mock('../mcp/sandbox-mcp', () => ({
     data: { path: '/mock/path' },
   }),
   SANDBOX_TOOLS: {},
+  SANDBOX_ROOT: '/mock/sandbox',
 }));
 
 // Mock Anthropic client
@@ -111,7 +112,7 @@ import { ArchitectAgent, createArchitectAgent } from '../agents/architect';
 import { BuilderAgent, createBuilderAgent } from '../agents/builder';
 import { emitSessionMessage, emitSessionStateChange } from '../socket/emitter';
 import { ExecutionPlan, resolveVariables, resolveActionVariables } from '../types/execution-plan';
-import { canvas_create_node } from '../mcp/canvas-mcp';
+import { canvas_create_node } from '../mcp/canvas';
 import { smartGenerate } from '../lib/anthropic-client';
 
 const mockedCanvasCreateNode = vi.mocked(canvas_create_node);

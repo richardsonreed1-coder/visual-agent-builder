@@ -44,7 +44,7 @@ import {
   canvas_clear,
   canvas_sync_from_client,
   canvasState,
-} from './canvas-mcp';
+} from './canvas';
 
 import {
   emitNodeCreated,
@@ -420,7 +420,7 @@ describe('Sandbox MCP - Path Validation', () => {
 
 describe('Canvas MCP - Tool Registry', () => {
   it('CANVAS_TOOLS should have all expected tools', async () => {
-    const { CANVAS_TOOLS } = await import('./canvas-mcp');
+    const { CANVAS_TOOLS } = await import('./canvas');
 
     expect(CANVAS_TOOLS.canvas_create_node).toBeDefined();
     expect(CANVAS_TOOLS.canvas_connect_nodes).toBeDefined();
@@ -432,7 +432,7 @@ describe('Canvas MCP - Tool Registry', () => {
   });
 
   it('canvas_connect_nodes tool should require edgeType', async () => {
-    const { CANVAS_TOOLS } = await import('./canvas-mcp');
+    const { CANVAS_TOOLS } = await import('./canvas');
     const params = CANVAS_TOOLS.canvas_connect_nodes.parameters;
 
     expect(params.required).toContain('edgeType');
