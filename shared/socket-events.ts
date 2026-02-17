@@ -146,6 +146,20 @@ export interface ExecutionReportPayload {
 // Server to Client Events
 // -----------------------------------------------------------------------------
 
+export interface FixerPatchResult {
+  nodeLabel: string;
+  fieldsApplied: string[];
+  success: boolean;
+  error?: string;
+}
+
+export interface FixerApplyPatchesResultPayload {
+  sessionId: string;
+  results: FixerPatchResult[];
+  totalApplied: number;
+  totalFailed: number;
+}
+
 export interface ServerToClientEvents {
   // Session events
   'session:stateChange': (payload: SessionStatePayload) => void;
@@ -165,6 +179,9 @@ export interface ServerToClientEvents {
   'execution:log': (payload: ExecutionLogPayload) => void;
   'execution:agentResult': (payload: AgentResultPayload) => void;
   'execution:report': (payload: ExecutionReportPayload) => void;
+
+  // Fixer events
+  'fixer:patches-applied': (payload: FixerApplyPatchesResultPayload) => void;
 
   // Error events
   'error': (payload: { code: string; message: string; details?: unknown }) => void;
@@ -194,6 +211,7 @@ export interface ClientToServerEvents {
   // Fixer: standalone Claude call for configuration fixes
   'fixer:start': (payload: { sessionId: string; prompt: string }) => void;
   'fixer:stop': (payload: { sessionId: string }) => void;
+  'fixer:apply-patches': (payload: { sessionId: string }) => void;
 
   // Canvas edge updates (client informing server of edge property changes)
   'canvas:update_edge': (payload: CanvasEdgeUpdatePayload) => void;

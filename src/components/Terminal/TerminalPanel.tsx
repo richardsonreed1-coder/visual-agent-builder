@@ -13,6 +13,8 @@ import {
   ChevronDown,
   ChevronUp,
   BarChart3,
+  CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 import { useSocket } from '../../hooks/useSocket';
 import useStore from '../../store/useStore';
@@ -61,6 +63,9 @@ export const TerminalPanel: React.FC = () => {
   // Fixer tab state
   const [activeTab, setActiveTab] = useState<TerminalTab>('workflow');
   const [fixerLogs, setFixerLogs] = useState<LogEntry[]>([]);
+  const [fixerCompleted, setFixerCompleted] = useState(false);
+  const [patchesApplied, setPatchesApplied] = useState(false);
+  const [isApplyingPatches, setIsApplyingPatches] = useState(false);
   const { isFixerRunning, setFixerRunning } = useStore();
 
   // Resizable height state
@@ -139,9 +144,11 @@ export const TerminalPanel: React.FC = () => {
         if (
           payload.output.includes('Fixer completed') ||
           payload.output.includes('Fixer failed') ||
-          payload.output.includes('Fixer error')
+          payload.output.includes('Fixer error') ||
+          payload.output.includes('Fixer launched')
         ) {
           setFixerRunning(false);
+          setFixerCompleted(true);
         }
       } else {
         setLogs((prev) => [...prev, entry]);
@@ -160,9 +167,30 @@ export const TerminalPanel: React.FC = () => {
       }
     };
 
+    const handlePatchesApplied = (payload: {
+      sessionId: string;
+      results: Array<{ nodeLabel: string; fieldsApplied: string[]; success: boolean; error?: string }>;
+      totalApplied: number;
+      totalFailed: number;
+    }) => {
+      setIsApplyingPatches(false);
+      setPatchesApplied(true);
+
+      const entry: LogEntry = {
+        id: `patch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: Date.now(),
+        output: `Patches applied: ${payload.totalApplied} succeeded, ${payload.totalFailed} failed`,
+        stream: 'stdout',
+        type: 'text',
+      };
+      setFixerLogs((prev) => [...prev, entry]);
+    };
+
     socket.on('execution:log', handleExecutionLog);
+    socket.on('fixer:patches-applied', handlePatchesApplied);
     return () => {
       socket.off('execution:log', handleExecutionLog);
+      socket.off('fixer:patches-applied', handlePatchesApplied);
     };
   }, [socket]);
 
@@ -240,12 +268,33 @@ export const TerminalPanel: React.FC = () => {
   const handleClear = useCallback(() => {
     if (activeTab === 'fixer') {
       setFixerLogs([]);
+      setFixerCompleted(false);
+      setPatchesApplied(false);
     } else {
       setLogs([]);
       setExecutionReport(null);
       setShowResults(false);
     }
   }, [activeTab]);
+
+  const handleApplyPatches = useCallback(async () => {
+    if (!socket) return;
+    setIsApplyingPatches(true);
+
+    // Auto-create session if needed (fixer was started from a different hook instance)
+    let activeSessionId = sessionId;
+    if (!activeSessionId) {
+      try {
+        activeSessionId = await startSession();
+      } catch (err) {
+        console.error('[TerminalPanel] Failed to create session for apply-patches:', err);
+        setIsApplyingPatches(false);
+        return;
+      }
+    }
+
+    socket.emit('fixer:apply-patches', { sessionId: activeSessionId });
+  }, [socket, sessionId, startSession]);
 
   const formatTimestamp = (ts: number) => {
     const date = new Date(ts);
@@ -446,6 +495,37 @@ export const TerminalPanel: React.FC = () => {
                 <Square size={14} />
                 Stop Fixer
               </button>
+            )}
+
+            {/* Fixer tab: Apply Patches button when fixer is done */}
+            {activeTab === 'fixer' && fixerCompleted && !isFixerRunning && !patchesApplied && (
+              <button
+                onClick={handleApplyPatches}
+                disabled={isApplyingPatches}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600
+                           hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed
+                           text-white text-sm rounded transition-colors font-medium"
+              >
+                {isApplyingPatches ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Applying...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={14} />
+                    Apply Patches
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Fixer tab: Patches applied indicator */}
+            {activeTab === 'fixer' && patchesApplied && (
+              <span className="flex items-center gap-1.5 px-3 py-1.5 text-emerald-400 text-sm font-medium">
+                <CheckCircle2 size={14} />
+                Patches Applied
+              </span>
             )}
 
             {/* Clear */}

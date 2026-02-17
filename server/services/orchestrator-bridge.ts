@@ -6,6 +6,9 @@
 // =============================================================================
 
 import Anthropic from '@anthropic-ai/sdk';
+import { spawn, execSync, ChildProcess } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
 import {
   emitExecutionLog,
   emitExecutionStepStart,
@@ -13,7 +16,7 @@ import {
   emitAgentResult,
   emitExecutionReport,
 } from '../socket/emitter';
-import { SANDBOX_TOOLS } from '../mcp/sandbox-mcp';
+import { SANDBOX_TOOLS, SANDBOX_ROOT } from '../mcp/sandbox-mcp';
 
 // ---------------------------------------------------------------------------
 // Types — mirrored from agent-orchestrator/orchestrator/src/workflow/parser.ts
@@ -453,31 +456,361 @@ export function stopExecution(sessionId: string): void {
 }
 
 // ---------------------------------------------------------------------------
-// Standalone Fixer Agent — agentic tool-use loop for configuration fixes
+// Standalone Fixer Agent — Claude Code CLI engine (primary) + API fallback
 // ---------------------------------------------------------------------------
 
-const FIXER_SYSTEM_PROMPT = `You are a configuration fixer agent with access to sandbox tools.
-You can create files, directories, execute commands, and read files in the sandbox environment.
+/**
+ * Check if the Claude Code CLI is available on this machine.
+ */
+function isClaudeCliAvailable(): boolean {
+  try {
+    execSync('which claude', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-IMPORTANT: All file paths must be RELATIVE to the sandbox root. Never use absolute paths.
-- Correct: "config/settings.json", "agents/my-agent.md", ".claude/hooks/pre-commit.json"
-- Wrong: "/Users/someone/Desktop/project/config/settings.json"
+/**
+ * Strip ANSI escape codes from terminal output for clean logging.
+ */
+function stripAnsi(str: string): string {
+  return str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
+}
 
-For sandbox_execute_command: use relative paths only. The working directory is already the sandbox root.
+/**
+ * Execute the fixer via Claude Code CLI in a NATIVE TERMINAL WINDOW.
+ *
+ * Instead of spawning `claude -p` (which strips away the interactive UI),
+ * this opens a real Terminal.app window running Claude Code interactively.
+ * The user gets the full Claude Code experience:
+ * - Task lists with checkmarks
+ * - Real-time streaming output
+ * - Tool approval prompts (or auto-approve with --dangerously-skip-permissions)
+ * - Context management and summarization
+ * - Colored, formatted terminal output
+ *
+ * The fixer prompt is written to a file, and a launcher script handles:
+ * 1. cd to the sandbox directory
+ * 2. Run `claude` with the prompt as a positional arg (NO -p flag = full interactive UI)
+ * 3. Keep the terminal open after completion so user can review
+ */
+async function executeFixerViaCLI(
+  sessionId: string,
+  prompt: string,
+  log: (msg: string, stream?: 'stdout' | 'stderr') => void,
+  abortController: AbortController
+): Promise<void> {
+  // Ensure sandbox directory exists
+  if (!fs.existsSync(SANDBOX_ROOT)) {
+    fs.mkdirSync(SANDBOX_ROOT, { recursive: true });
+  }
 
-For auto-fixable items: USE YOUR TOOLS to actually create the files, directories, and configs. Do not just output instructions — execute the fixes directly.
+  // Write prompt to a file in the sandbox (avoids shell escaping issues with large prompts)
+  const promptPath = path.join(SANDBOX_ROOT, '.fixer-prompt.md');
+  fs.writeFileSync(promptPath, prompt, 'utf-8');
+  log(`[INIT] Prompt written to sandbox (${(prompt.length / 1024).toFixed(1)}KB)`);
 
-For manual items (like obtaining API keys): Provide clear instructions the user can follow.
+  // Build the Claude Code prompt — tells Claude to read the prompt file
+  const claudePrompt = [
+    'Read the file .fixer-prompt.md in the current directory and follow ALL instructions in it.',
+    'Create all output files exactly as specified (fixes/config-patches.json, fixes/manual-instructions.md, etc).',
+    'Work ONLY in the current directory. All file paths should be relative to the current directory.',
+    'Be extremely efficient — batch operations, minimize turns.',
+  ].join(' ');
 
-Work through each requirement systematically. After completing each fix, verify it worked by reading the file or listing the directory.
+  // Create a launcher script that:
+  // 1. cd to sandbox
+  // 2. Run claude interactively (NO -p flag) so user gets full UI:
+  //    task lists, streaming, colored output, tool approvals
+  // 3. Keep terminal open after completion
+  const launcherPath = path.join(SANDBOX_ROOT, '.fixer-launch.sh');
+  const launcherScript = [
+    '#!/bin/bash',
+    '# VAB Configuration Fixer — Auto-generated launcher',
+    `cd "${SANDBOX_ROOT}"`,
+    'echo "═══════════════════════════════════════════════════════════"',
+    'echo "  VAB Configuration Fixer — Claude Code Interactive Mode"',
+    'echo "═══════════════════════════════════════════════════════════"',
+    'echo ""',
+    `echo "Working directory: ${SANDBOX_ROOT}"`,
+    'echo "Prompt file: .fixer-prompt.md"',
+    'echo ""',
+    'echo "Starting Claude Code (interactive)..."',
+    'echo ""',
+    '',
+    // Pass prompt as positional arg WITHOUT -p flag.
+    // This launches Claude Code in full interactive mode with task lists,
+    // streaming output, colored formatting — the complete terminal experience.
+    // --dangerously-skip-permissions: auto-approve file writes and commands.
+    `claude "${claudePrompt.replace(/"/g, '\\"')}" --dangerously-skip-permissions`,
+    '',
+    'EXIT_CODE=$?',
+    'echo ""',
+    'echo "═══════════════════════════════════════════════════════════"',
+    'if [ $EXIT_CODE -eq 0 ]; then',
+    '  echo "  ✅ Fixer completed successfully!"',
+    'else',
+    '  echo "  ❌ Fixer exited with code $EXIT_CODE"',
+    'fi',
+    'echo "═══════════════════════════════════════════════════════════"',
+    'echo ""',
+    'echo "Output files in: fixes/"',
+    'ls -la fixes/ 2>/dev/null || echo "(no fixes directory created)"',
+    'echo ""',
+    'echo "Press any key to close this terminal..."',
+    'read -n 1 -s',
+  ].join('\n');
 
-Be concise in your text output. Focus on executing fixes, not explaining what you would do.`;
+  fs.writeFileSync(launcherPath, launcherScript, { mode: 0o755 });
+  log(`[INIT] Launcher script created`);
+
+  // Detect platform and open native terminal
+  const platform = process.platform;
+  log(`[INIT] Opening native terminal (${platform})...`);
+  log('');
+
+  if (platform === 'darwin') {
+    // macOS: Use osascript to open Terminal.app with our script
+    // This gives the user a full interactive terminal experience
+    const appleScript = `
+      tell application "Terminal"
+        activate
+        do script "${launcherPath}"
+      end tell
+    `;
+    try {
+      execSync(`osascript -e '${appleScript.replace(/'/g, "'\\''")}'`, { stdio: 'ignore' });
+      log('╔══════════════════════════════════════════════════════════╗');
+      log('║  🚀 Claude Code launched in Terminal.app!               ║');
+      log('║                                                         ║');
+      log('║  A new terminal window has opened with Claude Code      ║');
+      log('║  running the fixer interactively. You\'ll see:          ║');
+      log('║  • Real-time task lists and progress                    ║');
+      log('║  • Tool usage with full output                          ║');
+      log('║  • Colored, formatted streaming output                  ║');
+      log('║                                                         ║');
+      log(`║  Working dir: ${SANDBOX_ROOT.length > 40 ? '...' + SANDBOX_ROOT.slice(-40) : SANDBOX_ROOT.padEnd(43)}║`);
+      log('╚══════════════════════════════════════════════════════════╝');
+      log('');
+      log('Switch to the Terminal.app window to watch progress.');
+      log('Output files will appear in: fixes/');
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      log(`[ERROR] Failed to open Terminal.app: ${errMsg}`, 'stderr');
+      log('');
+      log('You can run the fixer manually:');
+      log(`  cd "${SANDBOX_ROOT}" && bash .fixer-launch.sh`);
+    }
+  } else if (platform === 'linux') {
+    // Linux: try common terminal emulators
+    const terminals = ['gnome-terminal', 'xterm', 'konsole', 'xfce4-terminal'];
+    let launched = false;
+    for (const term of terminals) {
+      try {
+        if (term === 'gnome-terminal') {
+          spawn(term, ['--', 'bash', launcherPath], { detached: true, stdio: 'ignore' }).unref();
+        } else {
+          spawn(term, ['-e', `bash ${launcherPath}`], { detached: true, stdio: 'ignore' }).unref();
+        }
+        launched = true;
+        log(`[INIT] Opened ${term} with fixer`);
+        break;
+      } catch { /* try next */ }
+    }
+    if (!launched) {
+      log('[WARN] Could not open a terminal emulator.', 'stderr');
+      log('Run manually:');
+      log(`  cd "${SANDBOX_ROOT}" && bash .fixer-launch.sh`);
+    }
+  } else if (platform === 'win32') {
+    // Windows: open cmd or PowerShell
+    try {
+      spawn('cmd.exe', ['/c', 'start', 'cmd.exe', '/k', `bash "${launcherPath}"`], { detached: true, stdio: 'ignore' }).unref();
+      log('[INIT] Opened Command Prompt with fixer');
+    } catch {
+      log('[WARN] Could not open terminal. Run manually:', 'stderr');
+      log(`  cd "${SANDBOX_ROOT}" && bash .fixer-launch.sh`);
+    }
+  }
+
+  // The terminal runs independently — we don't wait for it.
+  // The fixer tab just shows the launch status and instructions.
+  // This is intentional: the user watches progress in the REAL terminal,
+  // not in our embedded terminal which can't show the full Claude Code UI.
+
+  // Brief pause to let the terminal window appear
+  await new Promise(resolve => setTimeout(resolve, 1500));
+
+  // Cleanup the launcher script after a delay (terminal has already read it)
+  setTimeout(() => {
+    try { fs.unlinkSync(launcherPath); } catch { /* ignore */ }
+  }, 10_000);
+}
+
+/**
+ * Execute the fixer via direct Anthropic API (fallback when Claude CLI is not available).
+ * Uses a streaming agentic tool-use loop with sandbox tools.
+ */
+async function executeFixerViaAPI(
+  sessionId: string,
+  prompt: string,
+  log: (msg: string, stream?: 'stdout' | 'stderr') => void,
+  abortController: AbortController
+): Promise<{ iterations: number; inputTokens: number; outputTokens: number }> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error('ANTHROPIC_API_KEY not configured — set it in server/.env');
+  }
+
+  const client = new Anthropic({ apiKey });
+  const model = 'claude-sonnet-4-5-20250929';
+
+  const FIXER_SYSTEM_PROMPT = `You are a configuration fixer agent. You fix node configurations by writing structured JSON patch files.
+
+RULES:
+1. Use MULTIPLE tool calls per response. Batch aggressively.
+2. Primary output: "fixes/config-patches.json" — a JSON map of node label → config patch.
+3. All paths are RELATIVE. Never use absolute paths.
+4. Be extremely concise. No explanations. Just execute.
+
+WORKFLOW:
+1. Create "fixes/" directory + config-patches.json with ALL auto-fixable items.
+2. Create supporting config files + "fixes/manual-instructions.md" for manual items.
+3. Output a brief summary.`;
+
+  const tools: Anthropic.Tool[] = Object.values(SANDBOX_TOOLS).map(tool => ({
+    name: tool.name,
+    description: tool.description,
+    input_schema: tool.parameters as Anthropic.Tool.InputSchema,
+  }));
+
+  const messages: Anthropic.MessageParam[] = [
+    { role: 'user', content: prompt },
+  ];
+
+  let iteration = 0;
+  const MAX_ITERATIONS = 40;
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+
+  while (iteration < MAX_ITERATIONS) {
+    iteration++;
+    if (abortController.signal.aborted) break;
+
+    const msgSize = JSON.stringify(messages).length;
+    log(`[ITERATION ${iteration}/${MAX_ITERATIONS}] (context: ~${(msgSize / 1024).toFixed(0)}KB)`);
+
+    const stream = client.messages.stream({
+      model,
+      max_tokens: 16384,
+      temperature: 0.3,
+      system: FIXER_SYSTEM_PROMPT,
+      tools,
+      messages,
+    });
+
+    // Stream text
+    stream.on('text', (text) => {
+      if (abortController.signal.aborted) return;
+      for (const line of text.split('\n')) {
+        if (line.length > 0) log(line);
+      }
+    });
+
+    // Track tool blocks via raw SSE events
+    let toolBlockCount = 0;
+    let currentToolInputSize = 0;
+    let lastProgressLog = 0;
+
+    stream.on('streamEvent', (event) => {
+      if (event.type === 'content_block_start' && event.content_block.type === 'tool_use') {
+        toolBlockCount++;
+        currentToolInputSize = 0;
+        lastProgressLog = 0;
+        log(`[STREAMING] Tool ${toolBlockCount}: ${event.content_block.name}`);
+      }
+    });
+
+    stream.on('inputJson', (delta: string) => {
+      currentToolInputSize += delta.length;
+      if (currentToolInputSize - lastProgressLog >= 2048) {
+        log(`[STREAMING]   ...${(currentToolInputSize / 1024).toFixed(1)}KB`);
+        lastProgressLog = currentToolInputSize;
+      }
+    });
+
+    const heartbeat = setInterval(() => {
+      if (!abortController.signal.aborted) log('[...generating...]');
+    }, 12_000);
+
+    let response: Anthropic.Message;
+    try {
+      response = await stream.finalMessage();
+    } finally {
+      clearInterval(heartbeat);
+    }
+
+    if (abortController.signal.aborted) break;
+
+    totalInputTokens += response.usage.input_tokens;
+    totalOutputTokens += response.usage.output_tokens;
+
+    // Execute tool calls
+    const toolResults: Anthropic.ToolResultBlockParam[] = [];
+    for (const block of response.content) {
+      if (abortController.signal.aborted) break;
+      if (block.type !== 'tool_use') continue;
+
+      const toolDef = SANDBOX_TOOLS[block.name as keyof typeof SANDBOX_TOOLS];
+      if (!toolDef) {
+        toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify({ success: false, error: `Unknown tool: ${block.name}` }) });
+        continue;
+      }
+
+      const input = { ...(block.input as Record<string, unknown>) };
+      if (block.name === 'sandbox_execute_command') {
+        input.sessionId = sessionId;
+        input.source = 'fixer';
+      }
+
+      try {
+        const result = await toolDef.handler(input as any);
+        log(`[TOOL] ${result.success ? '✓' : '✗'} ${block.name}${result.success ? '' : `: ${result.error}`}`);
+        toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify(result) });
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        log(`[TOOL] ✗ ${block.name}: ${errMsg}`, 'stderr');
+        toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify({ success: false, error: errMsg }) });
+      }
+    }
+
+    if (response.stop_reason !== 'tool_use') break;
+
+    // Compact large tool inputs before next iteration
+    const compacted = response.content.map((block) => {
+      if (block.type === 'tool_use') {
+        const inputStr = JSON.stringify(block.input);
+        if (inputStr.length > 500) {
+          const inp = block.input as Record<string, unknown>;
+          return { ...block, input: { path: inp.path, command: inp.command, _note: `[truncated: ${inputStr.length} chars]` } };
+        }
+      }
+      return block;
+    });
+    messages.push({ role: 'assistant', content: compacted as Anthropic.ContentBlock[] });
+    messages.push({ role: 'user', content: toolResults });
+    log(`[CONTINUING] Next iteration...`);
+  }
+
+  return { iterations: iteration, inputTokens: totalInputTokens, outputTokens: totalOutputTokens };
+}
+
 
 /**
  * Execute the fixer agent with a compiled prompt.
- * Runs as an agentic tool-use loop with sandbox tools — NOT through the multi-agent orchestrator.
- * Claude can create files, directories, run commands, and verify fixes.
- * Streams output to the terminal via execution:log events.
+ * Primary: uses Claude Code CLI (if available) — proven agentic engine with native tools.
+ * Fallback: uses direct Anthropic API with sandbox tools.
  */
 export async function executeFixerAgent(
   sessionId: string,
@@ -486,174 +819,59 @@ export async function executeFixerAgent(
   const log = (msg: string, stream: 'stdout' | 'stderr' = 'stdout') =>
     emitExecutionLog(sessionId, msg, stream, 'fixer');
 
-  // Check for API key
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    log('═'.repeat(60), 'stderr');
-    log('ERROR: ANTHROPIC_API_KEY not set', 'stderr');
-    log('', 'stderr');
-    log('To run the fixer, set your API key:', 'stderr');
-    log('  1. Create server/.env file', 'stderr');
-    log('  2. Add: ANTHROPIC_API_KEY=sk-ant-...', 'stderr');
-    log('  3. Restart the server', 'stderr');
-    log('═'.repeat(60), 'stderr');
-    throw new Error('ANTHROPIC_API_KEY not configured');
-  }
-
-  // Set up abort controller
   const abortController = new AbortController();
   activeExecutions.set(sessionId, abortController);
-
   const startTime = Date.now();
 
   try {
+    const useCLI = isClaudeCliAvailable();
+
     log('═'.repeat(60));
-    log('CONFIGURATION FIXER — Agentic Tool-Use Loop');
+    log(`CONFIGURATION FIXER — ${useCLI ? 'Claude Code CLI Engine' : 'Anthropic API Engine'}`);
     log('═'.repeat(60));
     log('');
-    log('[INIT] Starting fixer agent with sandbox tools (claude-sonnet-4-5-20250929)...');
-    log('');
 
-    const client = new Anthropic({ apiKey });
-    const model = 'claude-sonnet-4-5-20250929';
+    if (useCLI) {
+      log('[INIT] Claude Code CLI detected — launching in native terminal');
+      log('[INIT] Full interactive experience: task lists, streaming, tool output');
+      log('');
+      await executeFixerViaCLI(sessionId, prompt, log, abortController);
+      // CLI path opens a native terminal and returns immediately.
+      // Don't show "completed" message — the real work happens in Terminal.app.
+      return;
+    } else {
+      log('[INIT] Claude Code CLI not found — falling back to Anthropic API engine');
+      log('[INIT] For better results, install Claude Code: npm install -g @anthropic-ai/claude-code');
+      log('');
 
-    // Build Anthropic tool definitions from SANDBOX_TOOLS
-    const tools: Anthropic.Tool[] = Object.values(SANDBOX_TOOLS).map(tool => ({
-      name: tool.name,
-      description: tool.description,
-      input_schema: tool.parameters as Anthropic.Tool.InputSchema,
-    }));
-
-    const messages: Anthropic.MessageParam[] = [
-      { role: 'user', content: prompt },
-    ];
-
-    let iteration = 0;
-    const MAX_ITERATIONS = 25;
-    let totalInputTokens = 0;
-    let totalOutputTokens = 0;
-
-    // Agentic loop
-    while (iteration < MAX_ITERATIONS) {
-      iteration++;
-
-      if (abortController.signal.aborted) {
-        log('[CANCELLED] Fixer stopped by user');
-        break;
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) {
+        log('═'.repeat(60), 'stderr');
+        log('ERROR: Neither Claude Code CLI nor ANTHROPIC_API_KEY available', 'stderr');
+        log('', 'stderr');
+        log('Option A: Install Claude Code CLI (recommended)', 'stderr');
+        log('  npm install -g @anthropic-ai/claude-code', 'stderr');
+        log('', 'stderr');
+        log('Option B: Set your API key in server/.env', 'stderr');
+        log('  ANTHROPIC_API_KEY=sk-ant-...', 'stderr');
+        log('═'.repeat(60), 'stderr');
+        throw new Error('No execution engine available');
       }
 
-      log(`[ITERATION ${iteration}/${MAX_ITERATIONS}]`);
+      const stats = await executeFixerViaAPI(sessionId, prompt, log, abortController);
 
-      // Per-iteration timeout (2 minutes) to prevent hanging
-      const iterationTimeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('API call timed out after 2 minutes')), 120_000)
-      );
-
-      const response = await Promise.race([
-        client.messages.create({
-          model,
-          max_tokens: 8192,
-          temperature: 0.3,
-          system: FIXER_SYSTEM_PROMPT,
-          tools,
-          messages,
-        }),
-        iterationTimeout,
-      ]);
-
-      totalInputTokens += response.usage.input_tokens;
-      totalOutputTokens += response.usage.output_tokens;
-
-      // Process content blocks
-      const toolResults: Anthropic.ToolResultBlockParam[] = [];
-
-      for (const block of response.content) {
-        if (abortController.signal.aborted) break;
-
-        if (block.type === 'text') {
-          // Stream text to terminal line by line
-          for (const line of block.text.split('\n')) {
-            log(line);
-          }
-        } else if (block.type === 'tool_use') {
-          const inputPreview = JSON.stringify(block.input);
-          const truncated = inputPreview.length > 120
-            ? inputPreview.slice(0, 120) + '...'
-            : inputPreview;
-          log(`[TOOL] ${block.name}(${truncated})`);
-
-          // Look up the tool handler
-          const toolDef = SANDBOX_TOOLS[block.name as keyof typeof SANDBOX_TOOLS];
-          if (!toolDef) {
-            log(`[TOOL] ✗ Unknown tool: ${block.name}`, 'stderr');
-            toolResults.push({
-              type: 'tool_result',
-              tool_use_id: block.id,
-              content: JSON.stringify({ success: false, error: `Unknown tool: ${block.name}` }),
-            });
-            continue;
-          }
-
-          // Inject sessionId and source for command execution so output routes to Fixer tab
-          const input = { ...(block.input as Record<string, unknown>) };
-          if (block.name === 'sandbox_execute_command') {
-            input.sessionId = sessionId;
-            input.source = 'fixer';
-          }
-
-          try {
-            const result = await toolDef.handler(input as any);
-
-            if (result.success) {
-              log(`[TOOL] ✓ ${block.name} succeeded`);
-            } else {
-              log(`[TOOL] ✗ ${block.name} failed: ${result.error}`, 'stderr');
-            }
-
-            toolResults.push({
-              type: 'tool_result',
-              tool_use_id: block.id,
-              content: JSON.stringify(result),
-            });
-          } catch (err) {
-            const errMsg = err instanceof Error ? err.message : String(err);
-            log(`[TOOL] ✗ ${block.name} threw: ${errMsg}`, 'stderr');
-            toolResults.push({
-              type: 'tool_result',
-              tool_use_id: block.id,
-              content: JSON.stringify({ success: false, error: errMsg }),
-            });
-          }
-        }
-      }
-
-      // If stop_reason is not tool_use, the agent is done
-      if (response.stop_reason !== 'tool_use') {
-        break;
-      }
-
-      // Append assistant response + tool results for next iteration
-      messages.push({ role: 'assistant', content: response.content });
-      messages.push({ role: 'user', content: toolResults });
+      // Log API stats
+      const cost = (stats.inputTokens / 1_000_000) * 3 + (stats.outputTokens / 1_000_000) * 15;
+      log('');
+      log(`> API stats: ${stats.iterations} iterations, $${cost.toFixed(4)}, ${stats.inputTokens}/${stats.outputTokens} tokens`);
     }
 
-    if (iteration >= MAX_ITERATIONS) {
-      log(`[WARN] Fixer reached maximum iteration limit (${MAX_ITERATIONS})`, 'stderr');
-    }
-
-    // Final summary with cumulative stats
     const durationMs = Date.now() - startTime;
-    const cost =
-      (totalInputTokens / 1_000_000) * 3 +
-      (totalOutputTokens / 1_000_000) * 15;
-
     log('');
     log('═'.repeat(60));
-    log(`> Fixer completed in ${iteration} iteration(s)`);
-    log(`> Duration: ${(durationMs / 1000).toFixed(1)}s`);
-    log(`> Cost: $${cost.toFixed(4)}`);
-    log(`> Tokens: ${totalInputTokens} input, ${totalOutputTokens} output`);
+    log(`> Fixer completed in ${(durationMs / 1000).toFixed(1)}s`);
     log('═'.repeat(60));
+
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     log(`[ERROR] Fixer failed: ${errorMessage}`, 'stderr');

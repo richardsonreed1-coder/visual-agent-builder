@@ -3,14 +3,17 @@
 // Handles incoming events from connected clients
 // =============================================================================
 
+import * as fs from 'fs';
+import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { TypedSocket, TypedSocketServer } from './emitter';
 import { SessionMessage, CanvasEdgeUpdatePayload } from '../../shared/socket-events';
 import { Session } from '../types/session';
 import { createSupervisorAgent, SupervisorAgent } from '../agents/supervisor';
-import { canvas_sync_from_client, canvasState, persistLayout } from '../mcp/canvas';
+import { canvas_sync_from_client, canvasState, canvas_update_property, persistLayout, loadPersistedLayout } from '../mcp/canvas';
 import { validateSystem } from '../services/runtime';
 import { executeWorkflow, executeFixerAgent, stopExecution } from '../services/orchestrator-bridge';
+import { SANDBOX_ROOT } from '../mcp/sandbox-mcp';
 import { emitExecutionLog } from './emitter';
 import { getSessionStore, FileSessionStore } from '../services/session-store';
 
@@ -353,12 +356,235 @@ export function setupSocketHandlers(io: TypedSocketServer): void {
 
       try {
         await executeFixerAgent(sessionId, prompt);
+        // Emit completion — for CLI path this fires immediately (terminal runs independently)
+        // For API path this fires after the agent loop finishes
+        emitExecutionLog(sessionId, 'Fixer launched — check Terminal.app for progress', 'stdout', 'fixer');
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        emitExecutionLog(sessionId, `Fixer error: ${errorMessage}`, 'stderr');
+        emitExecutionLog(sessionId, `Fixer error: ${errorMessage}`, 'stderr', 'fixer');
         socket.emit('error', {
           code: 'FIXER_ERROR',
           message: `Fixer error: ${errorMessage}`,
+        });
+      }
+    });
+
+    // Handle fixer:apply-patches — read config-patches.json and apply to canvas nodes
+    socket.on('fixer:apply-patches', async (payload) => {
+      const { sessionId } = payload;
+
+      if (!sessionId) {
+        socket.emit('error', {
+          code: 'INVALID_SESSION',
+          message: 'Session ID required to apply patches',
+        });
+        return;
+      }
+
+      console.log(`[Socket] Fixer apply-patches requested for session: ${sessionId}`);
+      emitExecutionLog(sessionId, '[PATCHES] Reading config-patches.json...', 'stdout', 'fixer');
+
+      const patchesPath = path.join(SANDBOX_ROOT, 'fixes', 'config-patches.json');
+
+      if (!fs.existsSync(patchesPath)) {
+        emitExecutionLog(sessionId, '[PATCHES] No config-patches.json found in sandbox/fixes/', 'stderr', 'fixer');
+        socket.emit('error', {
+          code: 'PATCHES_NOT_FOUND',
+          message: 'No config-patches.json found. Run the fixer first.',
+        });
+        return;
+      }
+
+      try {
+        // Ensure canvasState is populated — load from persisted layout if empty
+        if (canvasState.nodes.size === 0) {
+          console.log('[Socket] canvasState is empty, loading from persisted layout...');
+          emitExecutionLog(sessionId, '[PATCHES] Canvas state empty, loading from persisted layout...', 'stdout', 'fixer');
+          try {
+            await loadPersistedLayout();
+          } catch (loadErr) {
+            console.error('[Socket] Failed to load persisted layout:', loadErr);
+            emitExecutionLog(sessionId, `[PATCHES] WARN: Failed to load layout: ${loadErr}`, 'stderr', 'fixer');
+          }
+          console.log(`[Socket] Loaded ${canvasState.nodes.size} nodes from persisted layout`);
+          emitExecutionLog(sessionId, `[PATCHES] Loaded ${canvasState.nodes.size} nodes from layout.json`, 'stdout', 'fixer');
+        }
+
+        if (canvasState.nodes.size === 0) {
+          emitExecutionLog(sessionId, '[PATCHES] ERROR: No canvas nodes found. Open the canvas first.', 'stderr', 'fixer');
+          socket.emit('error', {
+            code: 'NO_CANVAS_STATE',
+            message: 'No canvas nodes found. Make sure the canvas has nodes before applying patches.',
+          });
+          return;
+        }
+
+        emitExecutionLog(sessionId, `[PATCHES] Canvas has ${canvasState.nodes.size} nodes, processing patches...`, 'stdout', 'fixer');
+
+        const raw = fs.readFileSync(patchesPath, 'utf-8');
+        const patches = JSON.parse(raw) as Record<string, Record<string, unknown>>;
+
+        const results: Array<{
+          nodeLabel: string;
+          fieldsApplied: string[];
+          success: boolean;
+          error?: string;
+        }> = [];
+
+        for (const [nodeLabel, patchObj] of Object.entries(patches)) {
+          // Skip metadata keys (start with underscore)
+          if (nodeLabel.startsWith('_')) continue;
+
+          // Find the matching node by label in canvasState
+          let matchedNodeId: string | null = null;
+          for (const [nodeId, node] of canvasState.nodes) {
+            if (node.label === nodeLabel) {
+              matchedNodeId = nodeId;
+              break;
+            }
+          }
+
+          // Fallback: use nodeId from the patch itself if label lookup failed
+          if (!matchedNodeId && typeof patchObj.nodeId === 'string') {
+            if (canvasState.nodes.has(patchObj.nodeId)) {
+              matchedNodeId = patchObj.nodeId;
+              emitExecutionLog(
+                sessionId,
+                `[PATCHES] Label "${nodeLabel}" not found by name, using nodeId from patch: ${matchedNodeId}`,
+                'stdout',
+                'fixer'
+              );
+            }
+          }
+
+          if (!matchedNodeId) {
+            emitExecutionLog(
+              sessionId,
+              `[PATCHES] WARN: No canvas node found with label "${nodeLabel}" — skipping`,
+              'stderr',
+              'fixer'
+            );
+            results.push({
+              nodeLabel,
+              fieldsApplied: [],
+              success: false,
+              error: `Node not found: "${nodeLabel}"`,
+            });
+            continue;
+          }
+
+          // Flatten the patch object: the fixer may produce nested structures like
+          // { nodeId: "...", autoFixes: { skills: [...] }, userProvided: { mcps: [...] } }
+          // We need to extract the actual config properties from autoFixes and userProvided
+          const flatProps: Record<string, unknown> = {};
+
+          for (const [key, value] of Object.entries(patchObj)) {
+            if (key === 'nodeId') {
+              // Skip metadata — not a config property
+              continue;
+            } else if ((key === 'autoFixes' || key === 'patches' || key === 'userProvided') && typeof value === 'object' && value !== null) {
+              // Flatten nested grouping keys into top-level config properties
+              for (const [subKey, subValue] of Object.entries(value as Record<string, unknown>)) {
+                // Each sub-entry might be a direct value OR an object with { description, value, instruction }
+                const unwrapped = subValue as Record<string, unknown>;
+                if (unwrapped && typeof unwrapped === 'object' && 'value' in unwrapped) {
+                  // Extract the actual value from the wrapper
+                  flatProps[subKey] = unwrapped.value;
+                } else {
+                  flatProps[subKey] = subValue;
+                }
+              }
+            } else {
+              // Already a flat property (backward compatible with simple format)
+              flatProps[key] = value;
+            }
+          }
+
+          const fieldsApplied: string[] = [];
+          let nodeSuccess = true;
+
+          // Apply each flattened property
+          for (const [key, value] of Object.entries(flatProps)) {
+            const propertyPath = key.startsWith('config.') ? key : `config.${key}`;
+            const result = canvas_update_property({
+              nodeId: matchedNodeId,
+              propertyPath,
+              value,
+            });
+
+            if (result.success) {
+              fieldsApplied.push(key);
+            } else {
+              emitExecutionLog(
+                sessionId,
+                `[PATCHES] ERROR: Failed to set ${key} on "${nodeLabel}": ${result.error}`,
+                'stderr',
+                'fixer'
+              );
+              nodeSuccess = false;
+            }
+          }
+
+          if (fieldsApplied.length > 0) {
+            emitExecutionLog(
+              sessionId,
+              `[PATCHES] Applied ${fieldsApplied.length} field(s) to "${nodeLabel}": ${fieldsApplied.join(', ')}`,
+              'stdout',
+              'fixer'
+            );
+          }
+
+          results.push({
+            nodeLabel,
+            fieldsApplied,
+            success: nodeSuccess,
+          });
+        }
+
+        // Persist layout after all patches
+        await persistLayout();
+
+        // Emit canvas:sync back to client so it refreshes
+        const nodesArray = Array.from(canvasState.nodes.values()).map((n) => ({
+          id: n.id,
+          type: n.type,
+          position: n.position,
+          parentId: n.parentId,
+          data: { ...n.data, label: n.label, nodeType: n.type, type: n.type },
+        }));
+        const edgesArray = Array.from(canvasState.edges.values()).map((e) => ({
+          id: e.id,
+          source: e.sourceId,
+          target: e.targetId,
+          type: e.edgeType,
+          data: e.data,
+        }));
+
+        // Broadcast updated state to all clients in this session
+        io.emit('node:updated', { nodeId: '__bulk_sync__', changes: {} });
+
+        const totalApplied = results.filter((r) => r.success).length;
+        const totalFailed = results.filter((r) => !r.success).length;
+
+        emitExecutionLog(
+          sessionId,
+          `[PATCHES] Complete: ${totalApplied} node(s) patched, ${totalFailed} failed`,
+          'stdout',
+          'fixer'
+        );
+
+        socket.emit('fixer:patches-applied', {
+          sessionId,
+          results,
+          totalApplied,
+          totalFailed,
+        });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        emitExecutionLog(sessionId, `[PATCHES] Error: ${errorMessage}`, 'stderr', 'fixer');
+        socket.emit('error', {
+          code: 'PATCH_ERROR',
+          message: `Failed to apply patches: ${errorMessage}`,
         });
       }
     });
