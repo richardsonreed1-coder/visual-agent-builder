@@ -1,19 +1,13 @@
-import { Settings, Package, GitBranch, Users, Bot, Zap, FileText } from 'lucide-react';
+import { Settings, Package, Zap, FileText } from 'lucide-react';
 import useStore from '../store/useStore';
 import { ExportFramework, SkillSchema, FRAMEWORK_METADATA, SKILL_SCHEMA_METADATA } from '../types/config';
 
 const frameworkIcons: Record<ExportFramework, React.ElementType> = {
   'vab-native': Package,
-  langgraph: GitBranch,
-  crewai: Users,
-  autogen: Bot,
 };
 
 const frameworkColors: Record<ExportFramework, string> = {
   'vab-native': 'bg-indigo-100 text-indigo-700',
-  langgraph: 'bg-purple-100 text-purple-700',
-  crewai: 'bg-teal-100 text-teal-700',
-  autogen: 'bg-amber-100 text-amber-700',
 };
 
 const schemaIcons: Record<SkillSchema, React.ElementType> = {

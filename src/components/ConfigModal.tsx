@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Settings, Sparkles, Package, GitBranch, Users, Bot, Check, FileText, Zap } from 'lucide-react';
+import { X, Settings, Sparkles, Package, Check, FileText, Zap } from 'lucide-react';
 import useStore from '../store/useStore';
 import {
   WorkflowConfig,
@@ -8,17 +8,11 @@ import {
   FRAMEWORK_METADATA,
   SKILL_SCHEMA_METADATA,
   DEFAULT_VAB_NATIVE_OPTIONS,
-  DEFAULT_LANGGRAPH_OPTIONS,
-  DEFAULT_CREWAI_OPTIONS,
-  DEFAULT_AUTOGEN_OPTIONS,
 } from '../types/config';
 
 const FrameworkIcon = ({ framework }: { framework: ExportFramework }) => {
   const iconMap = {
     'vab-native': Package,
-    langgraph: GitBranch,
-    crewai: Users,
-    autogen: Bot,
   };
   const Icon = iconMap[framework];
   return <Icon className="w-5 h-5" />;
@@ -36,15 +30,9 @@ const FrameworkCard = ({
   const meta = FRAMEWORK_METADATA[framework];
   const colorClasses = {
     indigo: selected ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500' : 'border-slate-200 hover:border-indigo-300',
-    purple: selected ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-500' : 'border-slate-200 hover:border-purple-300',
-    teal: selected ? 'border-teal-500 bg-teal-50 ring-2 ring-teal-500' : 'border-slate-200 hover:border-teal-300',
-    amber: selected ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-500' : 'border-slate-200 hover:border-amber-300',
   };
   const iconColorClasses = {
     indigo: selected ? 'text-indigo-600 bg-indigo-100' : 'text-slate-500 bg-slate-100',
-    purple: selected ? 'text-purple-600 bg-purple-100' : 'text-slate-500 bg-slate-100',
-    teal: selected ? 'text-teal-600 bg-teal-100' : 'text-slate-500 bg-slate-100',
-    amber: selected ? 'text-amber-600 bg-amber-100' : 'text-slate-500 bg-slate-100',
   };
 
   return (
@@ -160,162 +148,6 @@ const VABNativeOptionsPanel = ({
   </div>
 );
 
-const LangGraphOptionsPanel = ({
-  options,
-  onChange,
-}: {
-  options: NonNullable<WorkflowConfig['frameworkOptions']['langgraph']>;
-  onChange: (options: NonNullable<WorkflowConfig['frameworkOptions']['langgraph']>) => void;
-}) => (
-  <div className="space-y-3">
-    <div>
-      <label className="block text-sm text-slate-600 mb-1">State Schema</label>
-      <select
-        value={options.stateSchema}
-        onChange={(e) => onChange({ ...options, stateSchema: e.target.value as typeof options.stateSchema })}
-        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-      >
-        <option value="typed-dict">TypedDict</option>
-        <option value="pydantic">Pydantic</option>
-        <option value="dataclass">Dataclass</option>
-      </select>
-    </div>
-    <div>
-      <label className="block text-sm text-slate-600 mb-1">Checkpointer</label>
-      <select
-        value={options.checkpointer}
-        onChange={(e) => onChange({ ...options, checkpointer: e.target.value as typeof options.checkpointer })}
-        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-      >
-        <option value="memory">Memory</option>
-        <option value="sqlite">SQLite</option>
-        <option value="postgres">PostgreSQL</option>
-        <option value="none">None</option>
-      </select>
-    </div>
-    <div className="flex items-center justify-between">
-      <label className="text-sm text-slate-600">Async Mode</label>
-      <input
-        type="checkbox"
-        checked={options.asyncMode}
-        onChange={(e) => onChange({ ...options, asyncMode: e.target.checked })}
-        className="rounded text-indigo-600 focus:ring-indigo-500"
-      />
-    </div>
-    <div className="flex items-center justify-between">
-      <label className="text-sm text-slate-600">Streaming</label>
-      <input
-        type="checkbox"
-        checked={options.streamingEnabled}
-        onChange={(e) => onChange({ ...options, streamingEnabled: e.target.checked })}
-        className="rounded text-indigo-600 focus:ring-indigo-500"
-      />
-    </div>
-  </div>
-);
-
-const CrewAIOptionsPanel = ({
-  options,
-  onChange,
-}: {
-  options: NonNullable<WorkflowConfig['frameworkOptions']['crewai']>;
-  onChange: (options: NonNullable<WorkflowConfig['frameworkOptions']['crewai']>) => void;
-}) => (
-  <div className="space-y-3">
-    <div>
-      <label className="block text-sm text-slate-600 mb-1">Process Type</label>
-      <select
-        value={options.processType}
-        onChange={(e) => onChange({ ...options, processType: e.target.value as typeof options.processType })}
-        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-      >
-        <option value="sequential">Sequential</option>
-        <option value="hierarchical">Hierarchical</option>
-      </select>
-    </div>
-    <div className="flex items-center justify-between">
-      <label className="text-sm text-slate-600">Verbose Output</label>
-      <input
-        type="checkbox"
-        checked={options.verbose}
-        onChange={(e) => onChange({ ...options, verbose: e.target.checked })}
-        className="rounded text-indigo-600 focus:ring-indigo-500"
-      />
-    </div>
-    <div className="flex items-center justify-between">
-      <label className="text-sm text-slate-600">Enable Memory</label>
-      <input
-        type="checkbox"
-        checked={options.memoryEnabled}
-        onChange={(e) => onChange({ ...options, memoryEnabled: e.target.checked })}
-        className="rounded text-indigo-600 focus:ring-indigo-500"
-      />
-    </div>
-    <div className="flex items-center justify-between">
-      <label className="text-sm text-slate-600">Enable Cache</label>
-      <input
-        type="checkbox"
-        checked={options.cacheEnabled}
-        onChange={(e) => onChange({ ...options, cacheEnabled: e.target.checked })}
-        className="rounded text-indigo-600 focus:ring-indigo-500"
-      />
-    </div>
-  </div>
-);
-
-const AutoGenOptionsPanel = ({
-  options,
-  onChange,
-}: {
-  options: NonNullable<WorkflowConfig['frameworkOptions']['autogen']>;
-  onChange: (options: NonNullable<WorkflowConfig['frameworkOptions']['autogen']>) => void;
-}) => (
-  <div className="space-y-3">
-    <div>
-      <label className="block text-sm text-slate-600 mb-1">Conversation Pattern</label>
-      <select
-        value={options.conversationPattern}
-        onChange={(e) => onChange({ ...options, conversationPattern: e.target.value as typeof options.conversationPattern })}
-        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-      >
-        <option value="two-agent">Two Agent</option>
-        <option value="group-chat">Group Chat</option>
-        <option value="nested">Nested</option>
-      </select>
-    </div>
-    <div>
-      <label className="block text-sm text-slate-600 mb-1">Human Input Mode</label>
-      <select
-        value={options.humanInputMode}
-        onChange={(e) => onChange({ ...options, humanInputMode: e.target.value as typeof options.humanInputMode })}
-        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-      >
-        <option value="NEVER">Never</option>
-        <option value="TERMINATE">Terminate</option>
-        <option value="ALWAYS">Always</option>
-      </select>
-    </div>
-    <div className="flex items-center justify-between">
-      <label className="text-sm text-slate-600">Code Execution</label>
-      <input
-        type="checkbox"
-        checked={options.codeExecutionEnabled}
-        onChange={(e) => onChange({ ...options, codeExecutionEnabled: e.target.checked })}
-        className="rounded text-indigo-600 focus:ring-indigo-500"
-      />
-    </div>
-    <div className="flex items-center justify-between">
-      <label className="text-sm text-slate-600">Use Docker</label>
-      <input
-        type="checkbox"
-        checked={options.useDocker}
-        onChange={(e) => onChange({ ...options, useDocker: e.target.checked })}
-        className="rounded text-indigo-600 focus:ring-indigo-500"
-      />
-    </div>
-  </div>
-);
-
 export const ConfigModal = () => {
   const { workflowConfig, setWorkflowConfig, isConfigModalOpen, setConfigModalOpen } = useStore();
   const [localConfig, setLocalConfig] = useState<WorkflowConfig>(workflowConfig);
@@ -328,16 +160,9 @@ export const ConfigModal = () => {
   }, [isConfigModalOpen, workflowConfig]);
 
   const handleFrameworkChange = (framework: ExportFramework) => {
-    // Ensure framework options exist for the selected framework
     const frameworkOptions = { ...localConfig.frameworkOptions };
     if (framework === 'vab-native' && !frameworkOptions.vabNative) {
       frameworkOptions.vabNative = DEFAULT_VAB_NATIVE_OPTIONS;
-    } else if (framework === 'langgraph' && !frameworkOptions.langgraph) {
-      frameworkOptions.langgraph = DEFAULT_LANGGRAPH_OPTIONS;
-    } else if (framework === 'crewai' && !frameworkOptions.crewai) {
-      frameworkOptions.crewai = DEFAULT_CREWAI_OPTIONS;
-    } else if (framework === 'autogen' && !frameworkOptions.autogen) {
-      frameworkOptions.autogen = DEFAULT_AUTOGEN_OPTIONS;
     }
     setLocalConfig({ ...localConfig, framework, frameworkOptions });
   };
@@ -433,7 +258,7 @@ export const ConfigModal = () => {
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Target Framework</h3>
             <div className="grid grid-cols-2 gap-3">
-              {(['vab-native', 'langgraph', 'crewai', 'autogen'] as ExportFramework[]).map((fw) => (
+              {(['vab-native'] as ExportFramework[]).map((fw) => (
                 <FrameworkCard
                   key={fw}
                   framework={fw}
@@ -472,39 +297,6 @@ export const ConfigModal = () => {
                     setLocalConfig({
                       ...localConfig,
                       frameworkOptions: { ...localConfig.frameworkOptions, vabNative: opts },
-                    })
-                  }
-                />
-              )}
-              {localConfig.framework === 'langgraph' && localConfig.frameworkOptions.langgraph && (
-                <LangGraphOptionsPanel
-                  options={localConfig.frameworkOptions.langgraph}
-                  onChange={(opts) =>
-                    setLocalConfig({
-                      ...localConfig,
-                      frameworkOptions: { ...localConfig.frameworkOptions, langgraph: opts },
-                    })
-                  }
-                />
-              )}
-              {localConfig.framework === 'crewai' && localConfig.frameworkOptions.crewai && (
-                <CrewAIOptionsPanel
-                  options={localConfig.frameworkOptions.crewai}
-                  onChange={(opts) =>
-                    setLocalConfig({
-                      ...localConfig,
-                      frameworkOptions: { ...localConfig.frameworkOptions, crewai: opts },
-                    })
-                  }
-                />
-              )}
-              {localConfig.framework === 'autogen' && localConfig.frameworkOptions.autogen && (
-                <AutoGenOptionsPanel
-                  options={localConfig.frameworkOptions.autogen}
-                  onChange={(opts) =>
-                    setLocalConfig({
-                      ...localConfig,
-                      frameworkOptions: { ...localConfig.frameworkOptions, autogen: opts },
                     })
                   }
                 />

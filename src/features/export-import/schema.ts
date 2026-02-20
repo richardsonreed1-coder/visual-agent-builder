@@ -458,7 +458,7 @@ export const WorkflowConfigExportSchema = z.object({
   name: z.string(),
   description: z.string(),
   version: z.string(),
-  framework: z.enum(['vab-native', 'langgraph', 'crewai', 'autogen']),
+  framework: z.enum(['vab-native']),
   skillSchema: z.enum(['agentskills', 'simple']),
   frameworkOptions: z.record(z.string(), z.unknown()).optional(),
   defaultModel: ModelConfigSchema.optional(),

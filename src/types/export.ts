@@ -67,50 +67,6 @@ export interface VABNativeExport {
   [commandPath: `commands/${string}`]: string | undefined;
 }
 
-export interface LangGraphExport {
-  'README.md': string;
-  'pyproject.toml': string;
-  'requirements.txt': string;
-  '.env.example': string;
-  'src/__init__.py': string;
-  'src/main.py': string;
-  'src/graph.py': string;
-  'src/state.py': string;
-  [nodePath: `src/nodes/${string}`]: string | undefined;
-  [edgePath: `src/edges/${string}`]: string | undefined;
-  [promptPath: `src/prompts/${string}`]: string | undefined;
-}
-
-export interface CrewAIExport {
-  'README.md': string;
-  'pyproject.toml': string;
-  'requirements.txt': string;
-  '.env.example': string;
-  'config/agents.yaml': string;
-  'config/tasks.yaml': string;
-  'config/tools.yaml'?: string;
-  'src/__init__.py': string;
-  'src/main.py': string;
-  'src/crew.py': string;
-  [agentPath: `src/agents/${string}`]: string | undefined;
-  [taskPath: `src/tasks/${string}`]: string | undefined;
-}
-
-export interface AutoGenExport {
-  'README.md': string;
-  'pyproject.toml': string;
-  'requirements.txt': string;
-  '.env.example': string;
-  'config/llm_config.json': string;
-  'config/agents.json': string;
-  'config/group_chat.json'?: string;
-  'src/__init__.py': string;
-  'src/main.py': string;
-  'src/orchestrator.py': string;
-  [agentPath: `src/agents/${string}`]: string | undefined;
-  [patternPath: `src/patterns/${string}`]: string | undefined;
-}
-
 // =============================================================================
 // Export Context (passed to generators)
 // =============================================================================

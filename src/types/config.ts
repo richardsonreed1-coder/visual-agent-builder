@@ -2,7 +2,7 @@
 // Framework Types
 // =============================================================================
 
-export type ExportFramework = 'vab-native' | 'langgraph' | 'crewai' | 'autogen';
+export type ExportFramework = 'vab-native';
 export type SkillSchema = 'agentskills' | 'simple';
 export type Environment = 'development' | 'staging' | 'production';
 
@@ -18,36 +18,8 @@ export interface VABNativeOptions {
   generateReadme: boolean;
 }
 
-export interface LangGraphOptions {
-  stateSchema: 'typed-dict' | 'pydantic' | 'dataclass';
-  checkpointer: 'memory' | 'sqlite' | 'postgres' | 'none';
-  asyncMode: boolean;
-  streamingEnabled: boolean;
-  recursionLimit: number;
-}
-
-export interface CrewAIOptions {
-  processType: 'sequential' | 'hierarchical';
-  managerLlm: string;
-  verbose: boolean;
-  memoryEnabled: boolean;
-  cacheEnabled: boolean;
-  embedderProvider: 'openai' | 'huggingface' | 'none';
-}
-
-export interface AutoGenOptions {
-  conversationPattern: 'two-agent' | 'group-chat' | 'nested';
-  humanInputMode: 'ALWAYS' | 'TERMINATE' | 'NEVER';
-  codeExecutionEnabled: boolean;
-  maxConsecutiveAutoReply: number;
-  useDocker: boolean;
-}
-
 export interface FrameworkOptions {
   vabNative?: VABNativeOptions;
-  langgraph?: LangGraphOptions;
-  crewai?: CrewAIOptions;
-  autogen?: AutoGenOptions;
 }
 
 // =============================================================================
@@ -104,36 +76,8 @@ export const DEFAULT_VAB_NATIVE_OPTIONS: VABNativeOptions = {
   generateReadme: true,
 };
 
-export const DEFAULT_LANGGRAPH_OPTIONS: LangGraphOptions = {
-  stateSchema: 'typed-dict',
-  checkpointer: 'memory',
-  asyncMode: true,
-  streamingEnabled: true,
-  recursionLimit: 50,
-};
-
-export const DEFAULT_CREWAI_OPTIONS: CrewAIOptions = {
-  processType: 'sequential',
-  managerLlm: 'anthropic/claude-sonnet-4-20250514',
-  verbose: true,
-  memoryEnabled: true,
-  cacheEnabled: true,
-  embedderProvider: 'openai',
-};
-
-export const DEFAULT_AUTOGEN_OPTIONS: AutoGenOptions = {
-  conversationPattern: 'group-chat',
-  humanInputMode: 'TERMINATE',
-  codeExecutionEnabled: true,
-  maxConsecutiveAutoReply: 10,
-  useDocker: false,
-};
-
 export const DEFAULT_FRAMEWORK_OPTIONS: FrameworkOptions = {
   vabNative: DEFAULT_VAB_NATIVE_OPTIONS,
-  langgraph: DEFAULT_LANGGRAPH_OPTIONS,
-  crewai: DEFAULT_CREWAI_OPTIONS,
-  autogen: DEFAULT_AUTOGEN_OPTIONS,
 };
 
 export const DEFAULT_MODEL_CONFIG: ModelConfig = {
@@ -173,27 +117,6 @@ export const FRAMEWORK_METADATA: Record<ExportFramework, FrameworkMeta> = {
     description: 'Claude Code CLI / .claude/ directory',
     color: 'indigo',
     icon: 'Package',
-  },
-  langgraph: {
-    value: 'langgraph',
-    label: 'LangGraph',
-    description: 'Python graph-based orchestration',
-    color: 'purple',
-    icon: 'GitBranch',
-  },
-  crewai: {
-    value: 'crewai',
-    label: 'CrewAI',
-    description: 'Role-playing agent framework',
-    color: 'teal',
-    icon: 'Users',
-  },
-  autogen: {
-    value: 'autogen',
-    label: 'AutoGen',
-    description: 'Microsoft multi-agent conversations',
-    color: 'amber',
-    icon: 'Bot',
   },
 };
 

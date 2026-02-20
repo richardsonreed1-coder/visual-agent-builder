@@ -55,7 +55,7 @@ export const ImportDropzone = ({ isActive, onDeactivate, cursorPosition }: Impor
           name: wc.name,
           description: wc.description,
           version: wc.version,
-          framework: wc.framework as 'vab-native' | 'langgraph' | 'crewai' | 'autogen',
+          framework: wc.framework as 'vab-native',
           skillSchema: wc.skillSchema as 'agentskills' | 'simple',
           environment: (wc.environment || 'development') as 'development' | 'staging' | 'production',
           author: wc.author,
