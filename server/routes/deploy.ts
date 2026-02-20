@@ -1,0 +1,76 @@
+// =============================================================================
+// Deploy API Route
+// Accepts a SystemBundle and runs the full deploy bridge pipeline
+// =============================================================================
+
+import { Router, Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
+import { validateBody } from '../src/middleware/validation';
+import { AppError } from '../src/middleware/error-handler';
+import { deploySystem, DeployError } from '../services/deploy-bridge';
+
+// -----------------------------------------------------------------------------
+// Zod Schema (mirrors the systems register schema)
+// -----------------------------------------------------------------------------
+
+const deployBodySchema = z.object({
+  manifest: z.object({
+    name: z.string().min(1),
+    slug: z.string().min(1).max(128).regex(/^[a-z0-9-]+$/, 'slug must be lowercase alphanumeric with hyphens'),
+    description: z.string(),
+    version: z.string(),
+    category: z.enum(['web-development', 'content-production', 'research', 'data-analysis', 'monitoring']),
+    requiredInputs: z.array(z.object({
+      name: z.string(),
+      type: z.string(),
+      description: z.string(),
+      required: z.boolean(),
+    })),
+    outputType: z.enum(['web_artifact', 'document', 'data', 'notification']),
+    estimatedCostUsd: z.number().min(0),
+    triggerPattern: z.enum(['cron', 'webhook', 'messaging', 'always-on']),
+    nodeCount: z.number().int().min(0),
+    edgeCount: z.number().int().min(0),
+  }),
+  canvasJson: z.unknown(),
+  agentConfigs: z.record(z.string(), z.unknown()),
+  mcpConfigs: z.array(z.unknown()),
+  pm2Ecosystem: z.unknown(),
+  envExample: z.record(z.string(), z.string()),
+  createdAt: z.string(),
+});
+
+// -----------------------------------------------------------------------------
+// Router
+// -----------------------------------------------------------------------------
+
+const router = Router();
+
+// POST /api/deploy — deploy a system bundle to OpenClaw
+router.post(
+  '/',
+  validateBody(deployBodySchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const openclawRoot = process.env.OPENCLAW_ROOT || '/opt/openclaw';
+      const record = await deploySystem(req.body, openclawRoot);
+      res.status(201).json(record);
+    } catch (error) {
+      if (error instanceof DeployError) {
+        return next(new AppError(500, error.message, `DEPLOY_FAILED_${error.step.toUpperCase()}`));
+      }
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        (error as { code: string }).code === '23505'
+      ) {
+        return next(
+          new AppError(409, `System with slug "${req.body.manifest.slug}" already exists`, 'DUPLICATE_SLUG')
+        );
+      }
+      next(error);
+    }
+  }
+);
+
+export { router as deployRouter };

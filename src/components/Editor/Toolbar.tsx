@@ -13,6 +13,7 @@ import {
   Settings2,
   CheckCircle2,
   X,
+  Rocket,
 } from 'lucide-react';
 import useStore from '../../store/useStore';
 import { generateWorkflowJson, downloadFile } from '../../utils/export';
@@ -21,6 +22,7 @@ import { generateSystemBundle, BundleMetadata } from '../../export/bundle-genera
 import { downloadBundleAsZip } from '../../export/bundle-zip';
 import { ExportDialog } from '../../features/export-import/components/ExportDialog';
 import { ConfigureWizardModal } from '../ConfigureWizard/ConfigureWizardModal';
+import DeployModal from '../Deploy/DeployModal';
 
 interface ToolbarProps {
   reactFlowInstance?: ReactFlowInstance | null;
@@ -38,6 +40,7 @@ export const Toolbar = ({ reactFlowInstance, onImportClick }: ToolbarProps = {})
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showConfigureWizard, setShowConfigureWizard] = useState(false);
+  const [showDeployModal, setShowDeployModal] = useState(false);
   const [toast, setToast] = useState<ToastState>({ visible: false, message: '', type: 'success' });
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -235,6 +238,16 @@ export const Toolbar = ({ reactFlowInstance, onImportClick }: ToolbarProps = {})
             )}
           </div>
 
+          {/* Deploy Button */}
+          <button
+            onClick={() => setShowDeployModal(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-cyan-600 rounded-lg hover:from-blue-600 hover:to-cyan-700 transition-all shadow-sm hover:shadow-md active:scale-[0.98]"
+            title="Deploy to OpenClaw"
+          >
+            <Rocket size={14} />
+            <span>Deploy</span>
+          </button>
+
           <div className="w-px h-7 bg-slate-200 mx-1" />
 
           {/* Save Workflow Button */}
@@ -281,6 +294,12 @@ export const Toolbar = ({ reactFlowInstance, onImportClick }: ToolbarProps = {})
       <ConfigureWizardModal
         isOpen={showConfigureWizard}
         onClose={() => setShowConfigureWizard(false)}
+      />
+
+      {/* Deploy Modal */}
+      <DeployModal
+        isOpen={showDeployModal}
+        onClose={() => setShowDeployModal(false)}
       />
 
       {/* Toast Notification */}

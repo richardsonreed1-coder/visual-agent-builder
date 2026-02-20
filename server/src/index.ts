@@ -34,6 +34,7 @@ import { analyzeWorkflow, analyzeNodeConfig } from '../services/configuration-an
 
 // Routes
 import { systemsRouter } from '../routes/systems';
+import { deployRouter } from '../routes/deploy';
 
 // Middleware
 import { requestLogger } from './middleware/request-logger';
@@ -384,6 +385,7 @@ app.get('/api/health', (_req, res) => {
 // --- Systems (deployment registry) ---
 
 app.use('/api/systems', systemsRouter);
+app.use('/api/deploy', deployRouter);
 
 // =============================================================================
 // Error Handling (must be after routes)
