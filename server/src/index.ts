@@ -32,6 +32,9 @@ import { getSession } from '../socket/handlers';
 import { getPoolStatus } from '../lib/anthropic-client';
 import { analyzeWorkflow, analyzeNodeConfig } from '../services/configuration-analyzer';
 
+// Routes
+import { systemsRouter } from '../routes/systems';
+
 // Middleware
 import { requestLogger } from './middleware/request-logger';
 import { errorHandler, notFoundHandler, AppError } from './middleware/error-handler';
@@ -87,7 +90,7 @@ app.use(helmet());
 app.use(
   cors({
     origin: CORS_ORIGINS,
-    methods: ['GET', 'POST'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
@@ -377,6 +380,10 @@ app.get('/api/health', (_req, res) => {
     pools: poolStatus,
   });
 });
+
+// --- Systems (deployment registry) ---
+
+app.use('/api/systems', systemsRouter);
 
 // =============================================================================
 // Error Handling (must be after routes)
