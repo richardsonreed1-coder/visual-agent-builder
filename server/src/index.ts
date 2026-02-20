@@ -36,6 +36,7 @@ import { handleLogStreamUpgrade } from '../services/log-stream';
 // Routes
 import { systemsRouter } from '../routes/systems';
 import { deployRouter } from '../routes/deploy';
+import { operatorsRouter } from '../routes/operators';
 
 // Middleware
 import { requestLogger } from './middleware/request-logger';
@@ -400,6 +401,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/systems', systemsRouter);
 app.use('/api/deploy', deployRouter);
+app.use('/api/operators', operatorsRouter);
 
 // =============================================================================
 // Error Handling (must be after routes)
