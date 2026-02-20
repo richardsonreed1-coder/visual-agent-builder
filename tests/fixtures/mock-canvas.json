@@ -1,0 +1,95 @@
+{
+  "nodes": [
+    {
+      "id": "agent-1",
+      "type": "customNode",
+      "position": { "x": 200, "y": 100 },
+      "data": {
+        "label": "Planner",
+        "type": "AGENT",
+        "config": {
+          "name": "Planner",
+          "description": "Orchestrates research and writing tasks",
+          "role": "orchestrator",
+          "roleCategory": "coordinator",
+          "provider": "anthropic",
+          "model": "claude-sonnet-4-5-20250929",
+          "temperature": 0.5,
+          "maxTokens": 8192,
+          "tools": ["Read", "Write", "Bash"],
+          "skills": [],
+          "mcps": [],
+          "commands": [],
+          "permissionMode": "default",
+          "systemPrompt": "You are a planning agent that coordinates research and writing tasks. Break down complex requests into actionable steps, delegate to specialist agents, and synthesize final output."
+        }
+      }
+    },
+    {
+      "id": "agent-2",
+      "type": "customNode",
+      "position": { "x": 50, "y": 350 },
+      "data": {
+        "label": "Researcher",
+        "type": "AGENT",
+        "config": {
+          "name": "Researcher",
+          "description": "Performs deep research and analysis",
+          "role": "specialist",
+          "roleCategory": "autonomous",
+          "provider": "anthropic",
+          "model": "claude-sonnet-4-5-20250929",
+          "temperature": 0.3,
+          "maxTokens": 4096,
+          "tools": ["WebSearch", "WebFetch", "Read"],
+          "skills": ["deep-research"],
+          "mcps": [],
+          "commands": [],
+          "permissionMode": "default",
+          "systemPrompt": "You are a research specialist. Gather comprehensive information from multiple sources, verify facts, and produce structured research briefs."
+        }
+      }
+    },
+    {
+      "id": "agent-3",
+      "type": "customNode",
+      "position": { "x": 350, "y": 350 },
+      "data": {
+        "label": "Writer",
+        "type": "AGENT",
+        "config": {
+          "name": "Writer",
+          "description": "Produces polished written content",
+          "role": "executor",
+          "roleCategory": "autonomous",
+          "provider": "openai",
+          "model": "gpt-4o",
+          "temperature": 0.7,
+          "maxTokens": 4096,
+          "tools": ["Write", "Edit"],
+          "skills": [],
+          "mcps": [],
+          "commands": [],
+          "permissionMode": "default",
+          "systemPrompt": "You are a writing specialist. Take research briefs and produce polished, well-structured content. Follow the style guide provided in your instructions."
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-1",
+      "source": "agent-1",
+      "target": "agent-2",
+      "type": "delegation",
+      "data": { "edgeType": "delegation" }
+    },
+    {
+      "id": "edge-2",
+      "source": "agent-1",
+      "target": "agent-3",
+      "type": "delegation",
+      "data": { "edgeType": "delegation" }
+    }
+  ]
+}
