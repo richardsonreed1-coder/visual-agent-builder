@@ -20,10 +20,12 @@
     "express": "^4.18.2",
     "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
+    "ioredis": "^5.9.3",
     "pg": "^8.13.1",
     "pm2": "^6.0.14",
     "socket.io": "^4.8.3",
     "uuid": "^13.0.0",
+    "ws": "^8.19.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -32,6 +34,7 @@
     "@types/node": "^20.10.0",
     "@types/pg": "^8.11.10",
     "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^1.6.1",
     "nodemon": "^3.0.1",
     "ts-node": "^10.9.1",
