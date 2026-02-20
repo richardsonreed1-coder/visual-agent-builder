@@ -36,12 +36,54 @@ export interface SystemManifest {
   edgeCount: number;
 }
 
+// PM2 config types (server-side mirror of frontend export types)
+export interface PM2AppConfig {
+  name: string;
+  script: string;
+  args?: string[];
+  cwd?: string;
+  interpreter?: string;
+  env?: Record<string, string>;
+  instances?: number;
+  max_memory_restart?: string;
+  cron_restart?: string;
+  autorestart?: boolean;
+  watch?: boolean;
+  max_restarts?: number;
+  restart_delay?: number;
+}
+
+export interface PM2EcosystemConfig {
+  apps: PM2AppConfig[];
+}
+
+// Minimal agent config shape for deploy bridge (avoids React Flow dependency)
+export interface AgentConfigSlim {
+  name: string;
+  role: string;
+  description?: string;
+  provider?: string;
+  model?: string;
+  systemPrompt?: string;
+  mcps: string[];
+  [key: string]: unknown;
+}
+
+// Minimal MCP server config shape for deploy bridge
+export interface MCPServerConfigSlim {
+  name: string;
+  command: string;
+  args?: string[];
+  env?: Record<string, string>;
+  [key: string]: unknown;
+}
+
 export interface SystemBundle {
   manifest: SystemManifest;
   canvasJson: unknown;
-  agentConfigs: Record<string, unknown>;
-  mcpConfigs: unknown[];
-  pm2Ecosystem: unknown;
+  agentConfigs: Record<string, AgentConfigSlim>;
+  mcpConfigs: MCPServerConfigSlim[];
+  pm2Ecosystem: PM2EcosystemConfig;
   envExample: Record<string, string>;
   createdAt: string;
 }
