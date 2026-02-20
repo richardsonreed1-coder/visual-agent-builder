@@ -11,6 +11,7 @@ import { Activity, AlertCircle, Archive, ArrowLeft, Calendar, CheckCircle, Clock
   DollarSign, Loader2, MessageSquare, Play, RefreshCw, RotateCcw, Server, Square,
   Timer, Webhook, XCircle } from 'lucide-react';
 import { LogStream } from './LogStream';
+import OperatorActionsPanel from './OperatorActionsPanel';
 
 const STATUS_CONFIG: Record<DeploymentStatus, { label: string; color: string; bg: string; dot: string }> = {
   deployed: { label: 'Online', color: 'text-emerald-700', bg: 'bg-emerald-50', dot: 'bg-emerald-500' },
@@ -267,6 +268,11 @@ export function SystemDetail() {
           {/* Live Log Stream */}
           <div className="lg:col-span-2">
             <LogStream slug={system.systemSlug} />
+          </div>
+
+          {/* Operator Actions */}
+          <div className="lg:col-span-2">
+            <OperatorActionsPanel systemSlug={system.systemSlug} />
           </div>
         </div>
       </div>

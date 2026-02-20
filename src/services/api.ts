@@ -191,3 +191,69 @@ export const updateSystemStatus = async (
 export const archiveSystem = async (slug: string): Promise<void> => {
   await axios.delete(`${API_URL}/systems/${slug}`);
 };
+
+// =============================================================================
+// Operator Actions API
+// =============================================================================
+
+export type OperatorType = 'system_monitor' | 'remediation' | 'optimization';
+
+export interface OperatorAction {
+  id: string;
+  deploymentId: string;
+  systemSlug: string | null;
+  operatorType: OperatorType;
+  actionType: string;
+  description: string;
+  beforeState: unknown;
+  afterState: unknown;
+  autoApplied: boolean;
+  approved: boolean | null;
+  createdAt: string;
+}
+
+export interface OperatorActionsResponse {
+  actions: OperatorAction[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export const fetchOperatorActions = async (params?: {
+  operatorType?: OperatorType;
+  approved?: string;
+  systemSlug?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<OperatorActionsResponse> => {
+  const queryParams = new URLSearchParams();
+  if (params?.operatorType) queryParams.set('operator_type', params.operatorType);
+  if (params?.approved) queryParams.set('approved', params.approved);
+  if (params?.systemSlug) queryParams.set('system_slug', params.systemSlug);
+  if (params?.limit) queryParams.set('limit', params.limit.toString());
+  if (params?.offset) queryParams.set('offset', params.offset.toString());
+
+  const qs = queryParams.toString();
+  const response = await axios.get<OperatorActionsResponse>(
+    `${API_URL}/operators/actions${qs ? `?${qs}` : ''}`
+  );
+  return response.data;
+};
+
+export const fetchPendingActions = async (
+  systemSlug?: string
+): Promise<{ actions: OperatorAction[] }> => {
+  const qs = systemSlug ? `?system_slug=${encodeURIComponent(systemSlug)}` : '';
+  const response = await axios.get<{ actions: OperatorAction[] }>(
+    `${API_URL}/operators/actions/pending${qs}`
+  );
+  return response.data;
+};
+
+export const approveAction = async (id: string): Promise<void> => {
+  await axios.post(`${API_URL}/operators/actions/${id}/approve`);
+};
+
+export const rejectAction = async (id: string): Promise<void> => {
+  await axios.post(`${API_URL}/operators/actions/${id}/reject`);
+};
