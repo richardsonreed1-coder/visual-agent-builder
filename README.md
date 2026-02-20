@@ -1,73 +1,74 @@
-# Visual Agent Builder
+# AUTOPILATE
 
-A powerful, drag-and-drop interface for architecting, configuring, and deploying AI agent workflows. Built with React Flow, TypeScript, and Node.js.
+AI agent design and orchestration platform. Design multi-agent systems visually, configure them with AI assistance, and deploy them to run on OpenClaw.
 
-![Visual Agent Builder](https://placeholder-image-url.com)
+## What It Does
 
-## 🚀 Features
+AUTOPILATE lets you design complex AI agent pipelines — like a research system with 12 coordinated agents — using a drag-and-drop visual builder. An AI-powered Configure Wizard analyzes your design for gaps, a Fixer Agent generates the missing configs, and a Deploy Bridge packages everything into a self-contained system that runs on the OpenClaw runtime.
 
-*   **Visual Canvas**: Infinite canvas with drag-and-drop support for agents, skills, tools, and plugins.
-*   **Component Library**: Auto-discovers components from your local `Master-Agent` inventory.
-*   **Properties Editor**: Dynamic configuration forms based on node types (schema-driven).
-*   **Export System**: Generate deployable `workflow.json` configurations and `CLAUDE.md` documentation.
-*   **Real-time Validation**: Connection typing and property validation.
+**Design-time** (this repo): VAB canvas, Configure Wizard, Fixer Agent, Export Engine
+**Runtime** (OpenClaw): Gateway, messaging channels, cron triggers, system execution, self-healing operators
 
-## 🛠️ Architecture
+## Quick Start
 
-*   **Frontend**: Vite, React 18, TypeScript, React Flow, Zustand, TailwindCSS, React Query.
-*   **Backend**: Node.js, Express (serves as a bridge to the local file system).
-*   **Data**: Local file system access for reading component definitions; In-memory state for the graph.
+Prerequisites: Node.js v18+
 
-## 🏁 Getting Started
+```bash
+# Install
+npm install && cd server && npm install && cd ..
 
-### Prerequisites
+# Run (two terminals)
+cd server && npm run dev       # Backend: localhost:3001
+npm run dev                    # Frontend: localhost:5173
+```
 
-*   Node.js v18+
-*   The `Master-Agent` directory located at `/Users/reedrichardson/Desktop/Master-Agent` (configurable in `server/services/inventory.ts`).
+## Usage
 
-### Installation
+1. **Design**: Drag agents, skills, tools, and MCPs from the library onto the canvas. Connect them with typed edges (delegation, data, control).
+2. **Configure**: Click "Configure" to run the AI-powered gap analysis. Accept or reject suggestions per field.
+3. **Fix**: Launch the Fixer Agent to auto-generate missing configs, API key placeholders, and system prompts.
+4. **Export**: Export as an AUTOPILATE System Bundle — a deployable package with agent configs, MCP connections, execution protocol, and trigger definition.
+5. **Run**: Execute the system directly from VAB for testing, or deploy to OpenClaw for production.
 
-1.  **Clone the repository** (or use the created directory):
-    ```bash
-    cd visual-agent-builder
-    ```
+## Architecture
 
-2.  **Install dependencies**:
-    ```bash
-    npm install
-    cd server && npm install
-    ```
+```
+AUTOPILATE (Design)              OpenClaw (Runtime)
+┌─────────────────────┐          ┌──────────────────────┐
+│  VAB Canvas          │          │  Gateway              │
+│  Configure Wizard    │  deploy  │  Router Agent         │
+│  Fixer Agent         │ ──────► │  Systems Library      │
+│  Export Engine       │          │  Operator Agents      │
+│  Deploy Bridge       │          │  Messaging Channels   │
+└─────────────────────┘          └──────────────────────┘
+```
 
-### Running the Application
+Systems designed in VAB are **independent pipelines**. OpenClaw dispatches and triggers them but does not orchestrate their internals. Each system manages its own agent coordination, phase ordering, and quality gates.
 
-1.  **Start the Backend Server**:
-    ```bash
-    cd server
-    npm start
-    ```
-    *Server runs on `http://localhost:3001`*
+## Tech Stack
 
-2.  **Start the Frontend**:
-    ```bash
-    # In a new terminal window
-    npm run dev
-    ```
-    *Frontend runs on `http://localhost:5173`*
+Frontend: React 18, TypeScript, React Flow, Zustand, TanStack Query, Tailwind CSS
+Backend: Node.js, Express, Socket.io, Claude API
+Runtime: OpenClaw, PM2, ClawHub
 
-## 📖 Usage Guide
+## Project Structure
 
-1.  **Browse Library**: Use the left sidebar to search and filter available Agents, Skills, and Tools.
-2.  **Add Nodes**: Drag items from the library onto the canvas.
-3.  **Connect**: Drag from one node's handle to another to create relationships (e.g., Agent uses Tool).
-4.  **Configure**: Click a node to open the **Properties Panel** on the right. Edit names, models, prompts, and parameters.
-5.  **Export**: Use the toolbar at the top of the canvas to:
-    *   **Run**: Simulate the workflow execution.
-    *   **Export JSON**: Save the workflow structure.
-    *   **Export Markdown**: Generate a `CLAUDE.md` documentation file.
+```
+src/
+  components/
+    Editor/          Canvas, Toolbar, custom nodes
+    Library/         Component library panel
+    Properties/      Node configuration forms
+    ConfigureWizard/ AI-powered config analysis
+    Terminal/        Streaming execution output
+  store/             Zustand state management
+  utils/export/      Export generators
+  types/             TypeScript type definitions
+server/
+  services/          Orchestrator bridge, runtime, inventory, sessions
+  socket/            Socket.io event handlers
+shared/
+  socket-events.ts   Shared event type definitions
+```
 
-## 🤝 Contributing
-
-This project is a prototype. Future phases will include:
-*   Real-time execution via Agent Protocol.
-*   Plugin marketplace integration.
-*   Collaborative editing (WebSocket).
+See `CLAUDE.md` for detailed architecture documentation.

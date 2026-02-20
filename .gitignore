@@ -43,3 +43,21 @@ coverage/
 
 # Vite
 .vite/
+
+# Cleanup script (one-time use)
+cleanup.sh
+
+# Reference docs (keep in Google Drive / Notion, not repo)
+*.docx
+*.html
+!index.html
+!src/**/*.html
+
+# Sandbox artifacts
+server/sandbox/
+
+# Session data
+data/
+
+# Vite temp files
+vite.config.ts.timestamp-*
