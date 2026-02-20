@@ -152,11 +152,15 @@ let SystemNotFoundError: typeof import('../../services/registry').SystemNotFound
 // Test suite
 // ---------------------------------------------------------------------------
 
-(async () => {
-const pgAvailable = await isPostgresAvailable();
+let pgAvailable = false;
 
-describe.skipIf(!pgAvailable)('Registry Integration Tests', () => {
+describe('Registry Integration Tests', () => {
   beforeAll(async () => {
+    pgAvailable = await isPostgresAvailable();
+    if (!pgAvailable) {
+      return;
+    }
+
     await createTestDatabase();
     testPool = new Pool({ connectionString: testDbUrl() });
     await runMigrations(testPool);
@@ -180,11 +184,17 @@ describe.skipIf(!pgAvailable)('Registry Integration Tests', () => {
     if (testPool) {
       await testPool.end();
     }
-    await dropTestDatabase();
+    if (pgAvailable) {
+      await dropTestDatabase();
+    }
     vi.restoreAllMocks();
   }, 30_000);
 
-  beforeEach(async () => {
+  beforeEach(async (ctx) => {
+    if (!pgAvailable) {
+      ctx.skip();
+      return;
+    }
     // Clean up deployments between tests (cascade not needed since we don't insert children)
     await testPool.query('DELETE FROM operator_actions');
     await testPool.query('DELETE FROM execution_logs');
@@ -388,4 +398,3 @@ describe.skipIf(!pgAvailable)('Registry Integration Tests', () => {
     });
   });
 });
-})();
