@@ -36,6 +36,28 @@ interface WorkflowContext {
   workflowName: string;
 }
 
+interface LlmSuggestionResponse {
+  field: string;
+  currentValue: unknown;
+  suggestedValue: unknown;
+  reason: string;
+  priority?: string;
+}
+
+interface LlmRequirementResponse {
+  type?: string;
+  description: string;
+  solution: string;
+  category?: string;
+}
+
+interface LlmAnalysisResponse {
+  summary?: string;
+  overallScore?: number;
+  suggestions?: LlmSuggestionResponse[];
+  missingRequirements?: LlmRequirementResponse[];
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -530,14 +552,14 @@ export async function analyzeNodeConfig(
       nodeLabel: node.label,
       summary,
       overallScore: parsed.overallScore || 5,
-      suggestions: (parsed.suggestions || []).map((s: any) => ({
+      suggestions: (parsed.suggestions || []).map((s: LlmSuggestionResponse) => ({
         field: s.field,
         currentValue: s.currentValue,
         suggestedValue: s.suggestedValue,
         reason: s.reason,
         priority: s.priority || 'medium',
       })),
-      missingRequirements: (parsed.missingRequirements || []).map((r: any) => ({
+      missingRequirements: (parsed.missingRequirements || []).map((r: LlmRequirementResponse) => ({
         type: r.type || 'config_field',
         description: r.description,
         solution: r.solution,
@@ -569,9 +591,9 @@ export async function analyzeNodeConfig(
     // Parse JSON from response
     const parseResult = parseJsonResponse(fullText);
     return buildSuggestion(parseResult);
-  } catch (err: any) {
+  } catch (err: unknown) {
     // If Opus fails with overload, try Sonnet
-    if (!usedFallback && err?.status === 529) {
+    if (!usedFallback && err instanceof Anthropic.APIError && err.status === 529) {
       usedFallback = true;
       model = 'claude-sonnet-4-5-20250929';
       onChunk('\n[Falling back to Sonnet model...]\n');
@@ -605,7 +627,7 @@ export async function analyzeNodeConfig(
 
 interface ParseResult {
   success: boolean;
-  data: any;
+  data: LlmAnalysisResponse;
 }
 
 function parseJsonResponse(text: string): ParseResult {
