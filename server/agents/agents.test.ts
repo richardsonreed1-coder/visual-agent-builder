@@ -289,8 +289,8 @@ describe('ArchitectAgent', () => {
 
   it('should handle invalid JSON in response', async () => {
     mockedSmartGenerate.mockResolvedValueOnce({
-      content: [{ type: 'text', text: 'not valid json at all' }],
-    });
+      content: [{ type: 'text', text: 'not valid json at all', citations: null }],
+    } as any);
 
     const context = {
       userIntent: 'Create something',
@@ -304,8 +304,8 @@ describe('ArchitectAgent', () => {
 
   it('should handle response with no text content', async () => {
     mockedSmartGenerate.mockResolvedValueOnce({
-      content: [{ type: 'tool_use', name: 'something' }],
-    });
+      content: [{ type: 'tool_use', name: 'something', id: 'tool_1', input: {} }],
+    } as any);
 
     const context = {
       userIntent: 'Create something',

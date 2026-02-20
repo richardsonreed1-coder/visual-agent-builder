@@ -152,6 +152,7 @@ let SystemNotFoundError: typeof import('../../services/registry').SystemNotFound
 // Test suite
 // ---------------------------------------------------------------------------
 
+(async () => {
 const pgAvailable = await isPostgresAvailable();
 
 describe.skipIf(!pgAvailable)('Registry Integration Tests', () => {
@@ -387,3 +388,4 @@ describe.skipIf(!pgAvailable)('Registry Integration Tests', () => {
     });
   });
 });
+})();

@@ -279,8 +279,8 @@ describe('Socket Emitter', () => {
   });
 
   it('emitNodeCreated should emit correct event', () => {
-    emitNodeCreated({ id: 'n1', type: 'AGENT', label: 'Test', position: { x: 0, y: 0 } });
-    expect(mockIo.emit).toHaveBeenCalledWith('node:created', expect.objectContaining({ id: 'n1' }));
+    emitNodeCreated({ nodeId: 'n1', type: 'AGENT', label: 'Test', position: { x: 0, y: 0 } });
+    expect(mockIo.emit).toHaveBeenCalledWith('node:created', expect.objectContaining({ nodeId: 'n1' }));
   });
 
   it('emitNodeDeleted should emit correct event', () => {
@@ -289,8 +289,8 @@ describe('Socket Emitter', () => {
   });
 
   it('emitEdgeCreated should emit correct event', () => {
-    emitEdgeCreated({ id: 'e1', sourceId: 'n1', targetId: 'n2' });
-    expect(mockIo.emit).toHaveBeenCalledWith('edge:created', expect.objectContaining({ id: 'e1' }));
+    emitEdgeCreated({ edgeId: 'e1', sourceId: 'n1', targetId: 'n2' });
+    expect(mockIo.emit).toHaveBeenCalledWith('edge:created', expect.objectContaining({ edgeId: 'e1' }));
   });
 
   it('emitEdgeDeleted should emit correct event', () => {
