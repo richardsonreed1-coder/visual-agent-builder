@@ -5,20 +5,20 @@ import {
   Trash2,
   FileJson,
   FileText,
-  FolderArchive,
+  Package,
   ChevronDown,
   Download,
   Upload,
   Save,
-  Eye,
-  BookOpen,
   Settings2,
+  CheckCircle2,
+  X,
 } from 'lucide-react';
 import useStore from '../../store/useStore';
 import { generateWorkflowJson, downloadFile } from '../../utils/export';
-import { generateDirectoryExport } from '../../utils/exportDirectory';
 import { generateClaudeMdExecutable } from '../../utils/generateClaudeMdExecutable';
-import { downloadAsZip, generateDirectoryTree } from '../../utils/zipGenerator';
+import { generateSystemBundle, BundleMetadata } from '../../export/bundle-generator';
+import { downloadBundleAsZip } from '../../export/bundle-zip';
 import { ExportDialog } from '../../features/export-import/components/ExportDialog';
 import { ConfigureWizardModal } from '../ConfigureWizard/ConfigureWizardModal';
 
@@ -27,12 +27,18 @@ interface ToolbarProps {
   onImportClick?: () => void;
 }
 
+interface ToastState {
+  visible: boolean;
+  message: string;
+  type: 'success' | 'error';
+}
+
 export const Toolbar = ({ reactFlowInstance, onImportClick }: ToolbarProps = {}) => {
   const { nodes, edges, setNodes, setEdges, workflowConfig } = useStore();
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showConfigureWizard, setShowConfigureWizard] = useState(false);
+  const [toast, setToast] = useState<ToastState>({ visible: false, message: '', type: 'success' });
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu on outside click
@@ -46,6 +52,17 @@ export const Toolbar = ({ reactFlowInstance, onImportClick }: ToolbarProps = {})
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (!toast.visible) return;
+    const timer = setTimeout(() => setToast((t) => ({ ...t, visible: false })), 3000);
+    return () => clearTimeout(timer);
+  }, [toast.visible]);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ visible: true, message, type });
+  };
+
   const handleClear = () => {
     if (confirm('Are you sure you want to clear the canvas? This action cannot be undone.')) {
       setNodes([]);
@@ -58,31 +75,47 @@ export const Toolbar = ({ reactFlowInstance, onImportClick }: ToolbarProps = {})
     const filename = workflowConfig.name.toLowerCase().replace(/\s+/g, '-') + '.json';
     downloadFile(JSON.stringify(json, null, 2), filename, 'application/json');
     setShowExportMenu(false);
+    showToast('JSON exported successfully');
   };
 
-  const handleExportMd = () => {
+  const handleExportClaudeMd = () => {
     const md = generateClaudeMdExecutable(nodes, edges, workflowConfig.name);
     downloadFile(md, 'CLAUDE.md', 'text/markdown');
     setShowExportMenu(false);
+    showToast('CLAUDE.md exported successfully');
   };
 
-  const handleExportZipWithFormat = async (format: 'executable' | 'documentary') => {
-    const files = generateDirectoryExport(nodes, edges, workflowConfig.name, {
-      claudeMdFormat: format,
-    });
-    const suffix = format === 'executable' ? '-run' : '-docs';
-    const filename = workflowConfig.name.toLowerCase().replace(/\s+/g, '-') + suffix + '.zip';
-    await downloadAsZip(files, filename);
-    setShowExportMenu(false);
-  };
+  const handleExportSystemBundle = async () => {
+    if (nodes.length === 0) {
+      showToast('Add some nodes to the canvas before exporting.', 'error');
+      setShowExportMenu(false);
+      return;
+    }
 
-  const handleExportZip = async () => {
-    await handleExportZipWithFormat('executable');
-  };
+    const agentNodes = nodes.filter((n) => n.data.type === 'AGENT');
+    if (agentNodes.length === 0) {
+      showToast('Add at least one agent node to export a system bundle.', 'error');
+      setShowExportMenu(false);
+      return;
+    }
 
-  const handlePreviewStructure = () => {
-    setShowPreview(true);
-    setShowExportMenu(false);
+    try {
+      const metadata: BundleMetadata = {
+        name: workflowConfig.name,
+        description: workflowConfig.description,
+        version: workflowConfig.version,
+        environment: workflowConfig.environment,
+      };
+
+      const bundle = generateSystemBundle(nodes, edges, metadata);
+      await downloadBundleAsZip(bundle);
+      setShowExportMenu(false);
+      showToast(`System bundle "${workflowConfig.name}" exported as ZIP`);
+    } catch (err) {
+      setShowExportMenu(false);
+      showToast('Failed to generate system bundle. Check console for details.', 'error');
+      console.error('System bundle export error:', err);
+    }
   };
 
   const handleRun = async () => {
@@ -90,15 +123,28 @@ export const Toolbar = ({ reactFlowInstance, onImportClick }: ToolbarProps = {})
       alert('Add some nodes to the canvas before running.');
       return;
     }
-    const files = generateDirectoryExport(nodes, edges, workflowConfig.name, {
-      claudeMdFormat: 'executable',
-    });
-    const filename = workflowConfig.name.toLowerCase().replace(/\s+/g, '-') + '-run.zip';
-    await downloadAsZip(files, filename);
-  };
 
-  // Generate preview content
-  const previewContent = showPreview ? generateDirectoryTree(generateDirectoryExport(nodes, edges)) : '';
+    const agentNodes = nodes.filter((n) => n.data.type === 'AGENT');
+    if (agentNodes.length === 0) {
+      alert('Add at least one agent node to run.');
+      return;
+    }
+
+    try {
+      const metadata: BundleMetadata = {
+        name: workflowConfig.name,
+        description: workflowConfig.description,
+        version: workflowConfig.version,
+        environment: workflowConfig.environment,
+      };
+
+      const bundle = generateSystemBundle(nodes, edges, metadata);
+      await downloadBundleAsZip(bundle);
+    } catch (err) {
+      alert('Failed to generate run bundle. Check console for details.');
+      console.error('Run bundle error:', err);
+    }
+  };
 
   return (
     <>
@@ -145,7 +191,7 @@ export const Toolbar = ({ reactFlowInstance, onImportClick }: ToolbarProps = {})
             </button>
 
             {showExportMenu && (
-              <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 py-2 min-w-[200px] z-50 overflow-hidden">
+              <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 py-2 min-w-[240px] z-50 overflow-hidden">
                 <div className="px-3 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                   Export Options
                 </div>
@@ -158,60 +204,31 @@ export const Toolbar = ({ reactFlowInstance, onImportClick }: ToolbarProps = {})
                   </div>
                   <div className="text-left">
                     <p className="font-medium">Export JSON</p>
-                    <p className="text-xs text-slate-400">Workflow data</p>
+                    <p className="text-xs text-slate-400">Save/load canvas state</p>
                   </div>
                 </button>
                 <button
-                  onClick={handleExportMd}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  <div className="p-1.5 bg-green-50 rounded-lg">
-                    <FileText size={14} className="text-green-600" />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-medium">Export CLAUDE.md</p>
-                    <p className="text-xs text-slate-400">Markdown config</p>
-                  </div>
-                </button>
-                <div className="border-t border-slate-100 my-1" />
-                <div className="px-3 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Directory Export
-                </div>
-                <button
-                  onClick={() => handleExportZipWithFormat('executable')}
+                  onClick={handleExportSystemBundle}
                   className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                 >
                   <div className="p-1.5 bg-emerald-50 rounded-lg">
-                    <Play size={14} className="text-emerald-600" />
+                    <Package size={14} className="text-emerald-600" />
                   </div>
                   <div className="text-left">
-                    <p className="font-medium">Export Executable</p>
-                    <p className="text-xs text-slate-400">Step-by-step protocol ZIP</p>
+                    <p className="font-medium">Export System Bundle</p>
+                    <p className="text-xs text-slate-400">Deployable ZIP with agents & config</p>
                   </div>
                 </button>
                 <button
-                  onClick={() => handleExportZipWithFormat('documentary')}
+                  onClick={handleExportClaudeMd}
                   className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                 >
                   <div className="p-1.5 bg-purple-50 rounded-lg">
-                    <BookOpen size={14} className="text-purple-600" />
+                    <FileText size={14} className="text-purple-600" />
                   </div>
                   <div className="text-left">
-                    <p className="font-medium">Export Documentary</p>
-                    <p className="text-xs text-slate-400">Architecture overview ZIP</p>
-                  </div>
-                </button>
-                <div className="border-t border-slate-100 my-1" />
-                <button
-                  onClick={handlePreviewStructure}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-500 hover:bg-slate-50 transition-colors"
-                >
-                  <div className="p-1.5 bg-slate-100 rounded-lg">
-                    <Eye size={14} className="text-slate-500" />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-medium">Preview Structure</p>
-                    <p className="text-xs text-slate-400">View file tree</p>
+                    <p className="font-medium">Export CLAUDE.md</p>
+                    <p className="text-xs text-slate-400">Execution protocol reference</p>
                   </div>
                 </button>
               </div>
@@ -266,58 +283,32 @@ export const Toolbar = ({ reactFlowInstance, onImportClick }: ToolbarProps = {})
         onClose={() => setShowConfigureWizard(false)}
       />
 
-      {/* Directory Structure Preview Modal */}
-      {showPreview && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]"
-          onClick={() => setShowPreview(false)}
-        >
+      {/* Toast Notification */}
+      {toast.visible && (
+        <div className="fixed bottom-6 right-6 z-[200] animate-in slide-in-from-bottom-4 fade-in duration-300">
           <div
-            className="bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden"
-            onClick={e => e.stopPropagation()}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border ${
+              toast.type === 'success'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-red-50 border-red-200 text-red-800'
+            }`}
           >
-            <div className="bg-gradient-to-r from-slate-800 to-slate-900 px-5 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white/10 rounded-lg">
-                    <FolderArchive className="w-5 h-5 text-purple-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-white">Export Preview</h3>
-                    <p className="text-xs text-slate-400">Directory structure</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowPreview(false)}
-                  className="text-slate-400 hover:text-white transition-colors text-xl leading-none"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-            <div className="p-5 max-h-[400px] overflow-auto bg-slate-50">
-              <pre className="text-sm font-mono text-slate-700 whitespace-pre bg-white p-4 rounded-lg border border-slate-200">
-                {previewContent}
-              </pre>
-            </div>
-            <div className="px-5 py-4 border-t border-slate-200 flex justify-end gap-3 bg-white">
-              <button
-                onClick={() => setShowPreview(false)}
-                className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setShowPreview(false);
-                  handleExportZip();
-                }}
-                className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-lg transition-all shadow-sm flex items-center gap-2"
-              >
-                <FolderArchive size={14} />
-                Download ZIP
-              </button>
-            </div>
+            {toast.type === 'success' ? (
+              <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
+            ) : (
+              <X size={16} className="text-red-500 shrink-0" />
+            )}
+            <p className="text-sm font-medium">{toast.message}</p>
+            <button
+              onClick={() => setToast((t) => ({ ...t, visible: false }))}
+              className={`ml-2 p-0.5 rounded-md transition-colors ${
+                toast.type === 'success'
+                  ? 'hover:bg-emerald-100'
+                  : 'hover:bg-red-100'
+              }`}
+            >
+              <X size={14} />
+            </button>
           </div>
         </div>
       )}
