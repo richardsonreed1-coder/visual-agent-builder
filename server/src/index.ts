@@ -31,6 +31,7 @@ import { createSupervisorAgent } from '../agents/supervisor';
 import { getSession } from '../socket/handlers';
 import { getPoolStatus } from '../lib/anthropic-client';
 import { analyzeWorkflow, analyzeNodeConfig } from '../services/configuration-analyzer';
+import { handleLogStreamUpgrade } from '../services/log-stream';
 
 // Routes
 import { systemsRouter } from '../routes/systems';
@@ -79,6 +80,19 @@ const io: TypedSocketServer = new SocketServer<
 // Initialize socket emitter and handlers
 initSocketEmitter(io);
 setupSocketHandlers(io);
+
+// WebSocket upgrade handler for live log streaming (/api/systems/:slug/stream).
+// Must be registered before Socket.io's own upgrade handler so it gets first
+// crack at non-Socket.io upgrade requests.
+httpServer.on('upgrade', (req, socket, head) => {
+  // Let Socket.io handle its own upgrade path (default: /socket.io/)
+  if (req.url?.startsWith('/socket.io')) return;
+
+  const handled = handleLogStreamUpgrade(req, socket, head);
+  if (!handled) {
+    socket.destroy();
+  }
+});
 
 // =============================================================================
 // Middleware Stack

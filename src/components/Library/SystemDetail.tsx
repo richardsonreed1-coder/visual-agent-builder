@@ -10,6 +10,7 @@ import useStore from '../../store/useStore';
 import { Activity, AlertCircle, Archive, ArrowLeft, Calendar, CheckCircle, Clock,
   DollarSign, Loader2, MessageSquare, Play, RefreshCw, RotateCcw, Server, Square,
   Timer, Webhook, XCircle } from 'lucide-react';
+import { LogStream } from './LogStream';
 
 const STATUS_CONFIG: Record<DeploymentStatus, { label: string; color: string; bg: string; dot: string }> = {
   deployed: { label: 'Online', color: 'text-emerald-700', bg: 'bg-emerald-50', dot: 'bg-emerald-500' },
@@ -263,16 +264,9 @@ export function SystemDetail() {
             )}
           </div>
 
-          {/* Execution History */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h3 className="text-sm font-semibold text-slate-800 mb-4">Recent Executions</h3>
-            <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-              <Clock size={24} className="mb-2 opacity-50" />
-              <p className="text-xs font-medium text-slate-500">No execution history yet</p>
-              <p className="text-[11px] text-slate-400 mt-1">
-                Execution tracking will be available with WebSocket streaming.
-              </p>
-            </div>
+          {/* Live Log Stream */}
+          <div className="lg:col-span-2">
+            <LogStream slug={system.systemSlug} />
           </div>
         </div>
       </div>
