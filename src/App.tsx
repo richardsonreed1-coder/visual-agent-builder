@@ -9,14 +9,16 @@ import { ChatPanel } from './components/Chat';
 import { TerminalPanel } from './components/Terminal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ImportDropzone } from './features/export-import/components/ImportDropzone';
+import { SystemsDashboard } from './components/Library/SystemsDashboard';
+import { SystemDetail } from './components/Library/SystemDetail';
 import { fetchInventory } from './services/api';
-import { Zap, Settings } from 'lucide-react';
+import { Zap, Settings, LayoutDashboard } from 'lucide-react';
 import useStore from './store/useStore';
 
 const queryClient = new QueryClient();
 
 function AppContent() {
-  const { libraryCategory, setLibraryCategory, workflowConfig, setConfigModalOpen } = useStore();
+  const { libraryCategory, setLibraryCategory, workflowConfig, setConfigModalOpen, activeView, setActiveView, selectedSystemSlug } = useStore();
   const [showImportDropzone, setShowImportDropzone] = useState(false);
 
   const handleImportClick = useCallback(() => {
@@ -64,40 +66,61 @@ function AppContent() {
           </button>
         </div>
 
-        {/* Right: Category Tabs */}
-        <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => handleCategoryTabClick(cat)}
-              className={`px-3 py-1.5 text-sm rounded-md transition-all ${
-                libraryCategory === cat
-                  ? 'bg-white text-indigo-700 font-medium shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              {cat.charAt(0).toUpperCase() + cat.slice(1)}
-            </button>
-          ))}
+        {/* Right: Category Tabs + Systems Dashboard */}
+        <div className="flex items-center gap-2">
+          {activeView === 'builder' && (
+            <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => handleCategoryTabClick(cat)}
+                  className={`px-3 py-1.5 text-sm rounded-md transition-all ${
+                    libraryCategory === cat
+                      ? 'bg-white text-indigo-700 font-medium shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                </button>
+              ))}
+            </div>
+          )}
+          <button
+            onClick={() => setActiveView(activeView === 'systems' ? 'builder' : 'systems')}
+            className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border transition-all ${
+              activeView === 'systems'
+                ? 'bg-indigo-50 text-indigo-700 border-indigo-200 font-medium'
+                : 'bg-slate-50 text-slate-600 border-slate-200 hover:text-slate-900 hover:border-slate-300'
+            }`}
+          >
+            <LayoutDashboard size={14} />
+            Systems
+          </button>
         </div>
       </header>
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Library Panel */}
-        <LibraryPanel />
+        {activeView === 'builder' ? (
+          <>
+            {/* Library Panel */}
+            <LibraryPanel />
 
-        {/* Canvas Area */}
-        <main className="flex-1 relative">
-          <ErrorBoundary fallbackTitle="Canvas error">
-            <Canvas onImportClick={handleImportClick} />
-          </ErrorBoundary>
-        </main>
+            {/* Canvas Area */}
+            <main className="flex-1 relative">
+              <ErrorBoundary fallbackTitle="Canvas error">
+                <Canvas onImportClick={handleImportClick} />
+              </ErrorBoundary>
+            </main>
 
-        {/* Properties Panel */}
-        <ErrorBoundary fallbackTitle="Properties panel error">
-          <PropertiesPanel />
-        </ErrorBoundary>
+            {/* Properties Panel */}
+            <ErrorBoundary fallbackTitle="Properties panel error">
+              <PropertiesPanel />
+            </ErrorBoundary>
+          </>
+        ) : (
+          selectedSystemSlug ? <SystemDetail /> : <SystemsDashboard />
+        )}
       </div>
 
       {/* Footer Status Bar */}

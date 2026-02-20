@@ -69,6 +69,9 @@ export const DEFAULT_LIBRARY_FILTERS: LibraryFilters = {
 // View mode for library panel
 export type LibraryViewMode = 'type' | 'bucket';
 
+// Top-level app view
+export type AppView = 'builder' | 'systems';
+
 interface StoreState {
   nodes: Node[];
   edges: Edge[];
@@ -80,6 +83,9 @@ interface StoreState {
   isConfigModalOpen: boolean;
   libraryFilters: LibraryFilters;
   libraryViewMode: LibraryViewMode;
+  // App view
+  activeView: AppView;
+  selectedSystemSlug: string | null;
   // Panel collapse state
   isLibraryPanelCollapsed: boolean;
   isPropertiesPanelCollapsed: boolean;
@@ -108,6 +114,9 @@ interface StoreState {
   setPropertiesPanelCollapsed: (collapsed: boolean) => void;
   toggleLibraryPanel: () => void;
   togglePropertiesPanel: () => void;
+  // App view
+  setActiveView: (view: AppView) => void;
+  setSelectedSystemSlug: (slug: string | null) => void;
   // Hierarchy helpers
   addChildNode: (parentId: string, node: Node) => void;
   moveNodeToParent: (nodeId: string, parentId: string | null) => void;
@@ -133,6 +142,8 @@ const useStore = create<StoreState>((set, get) => ({
   isConfigModalOpen: false,
   libraryFilters: DEFAULT_LIBRARY_FILTERS,
   libraryViewMode: 'type' as LibraryViewMode,
+  activeView: 'builder' as AppView,
+  selectedSystemSlug: null,
   isLibraryPanelCollapsed: false,
   isPropertiesPanelCollapsed: false,
   configureWizardCache: null,
@@ -258,6 +269,10 @@ const useStore = create<StoreState>((set, get) => ({
   setPropertiesPanelCollapsed: (collapsed) => set({ isPropertiesPanelCollapsed: collapsed }),
   toggleLibraryPanel: () => set({ isLibraryPanelCollapsed: !get().isLibraryPanelCollapsed }),
   togglePropertiesPanel: () => set({ isPropertiesPanelCollapsed: !get().isPropertiesPanelCollapsed }),
+
+  // App view
+  setActiveView: (view) => set({ activeView: view, selectedSystemSlug: null }),
+  setSelectedSystemSlug: (slug) => set({ selectedSystemSlug: slug }),
 
   // Configure wizard cache
   setConfigureWizardCache: (cache) => set({ configureWizardCache: cache }),

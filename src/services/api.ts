@@ -128,3 +128,66 @@ export const fetchBucketCounts = async (): Promise<BucketCounts> => {
   const response = await axios.get<BucketCounts>(`${API_URL}/inventory/bucket-counts`);
   return response.data;
 };
+
+// =============================================================================
+// Systems API
+// =============================================================================
+
+export type DeploymentStatus = 'deployed' | 'stopped' | 'errored' | 'archived';
+export type TriggerPattern = 'cron' | 'webhook' | 'messaging' | 'always-on';
+
+export interface SystemManifest {
+  name: string;
+  slug: string;
+  description: string;
+  version: string;
+  category: string;
+  requiredInputs: Array<{
+    name: string;
+    type: string;
+    description: string;
+    required: boolean;
+  }>;
+  outputType: string;
+  estimatedCostUsd: number;
+  triggerPattern: TriggerPattern;
+  nodeCount: number;
+  edgeCount: number;
+}
+
+export interface DeploymentRecord {
+  id: string;
+  systemName: string;
+  systemSlug: string;
+  manifestJson: SystemManifest;
+  canvasJson: unknown;
+  openclawConfig: unknown;
+  triggerType: TriggerPattern;
+  triggerConfig: unknown;
+  pm2ProcessName: string;
+  status: DeploymentStatus;
+  deployedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const fetchSystems = async (): Promise<DeploymentRecord[]> => {
+  const response = await axios.get<{ systems: DeploymentRecord[] }>(`${API_URL}/systems`);
+  return response.data.systems;
+};
+
+export const fetchSystem = async (slug: string): Promise<DeploymentRecord> => {
+  const response = await axios.get<DeploymentRecord>(`${API_URL}/systems/${slug}`);
+  return response.data;
+};
+
+export const updateSystemStatus = async (
+  slug: string,
+  status: DeploymentStatus
+): Promise<void> => {
+  await axios.put(`${API_URL}/systems/${slug}`, { status });
+};
+
+export const archiveSystem = async (slug: string): Promise<void> => {
+  await axios.delete(`${API_URL}/systems/${slug}`);
+};
