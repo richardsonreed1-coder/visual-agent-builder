@@ -3,6 +3,7 @@
 // =============================================================================
 
 import { Request, Response, NextFunction } from 'express';
+import { AutopilateError, isAutopilateError } from '../../../shared/errors';
 
 // -----------------------------------------------------------------------------
 // Application Error Class
@@ -32,6 +33,11 @@ export function errorHandler(
   // Log the error (structured for production logging)
   console.error(`[Error] ${err.name}: ${err.message}`);
 
+  if (isAutopilateError(err)) {
+    res.status(err.statusCode).json(err.toJSON());
+    return;
+  }
+
   if (err instanceof AppError) {
     res.status(err.statusCode).json({
       error: err.message,
@@ -43,6 +49,8 @@ export function errorHandler(
   // Don't leak internal error details to clients
   res.status(500).json({
     error: 'Internal server error',
+    code: 'INTERNAL_ERROR',
+    status: 500,
   });
 }
 

@@ -20,21 +20,10 @@ import {
   TriggerConfig,
 } from './trigger-factory';
 import { startProcess, deleteProcess } from './pm2-manager';
+import { DeploymentError } from '../../shared/errors';
 
-// -----------------------------------------------------------------------------
-// Types
-// -----------------------------------------------------------------------------
-
-export class DeployError extends Error {
-  constructor(
-    message: string,
-    public readonly step: string,
-    public readonly cause?: unknown
-  ) {
-    super(message);
-    this.name = 'DeployError';
-  }
-}
+// Re-export for backward compat in route handlers
+export { DeploymentError as DeployError };
 
 interface DeployArtifacts {
   systemDir: string | null;
@@ -107,7 +96,8 @@ export async function deploySystem(
 
     const mainApp = bundle.pm2Ecosystem.apps[0];
     if (!mainApp) {
-      throw new DeployError(
+      throw new DeploymentError(
+        'PM2_NO_CONFIG',
         'No PM2 app config found in bundle',
         'pm2-start'
       );
@@ -124,8 +114,9 @@ export async function deploySystem(
   } catch (err) {
     await rollback(artifacts, systemSlug, openclawRoot);
 
-    if (err instanceof DeployError) throw err;
-    throw new DeployError(
+    if (err instanceof DeploymentError) throw err;
+    throw new DeploymentError(
+      'FAILED',
       `Deployment failed for ${systemSlug}: ${err instanceof Error ? err.message : String(err)}`,
       'unknown',
       err

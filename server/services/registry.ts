@@ -132,13 +132,6 @@ export async function archiveSystem(slug: string): Promise<void> {
   }
 }
 
-// -----------------------------------------------------------------------------
-// Errors
-// -----------------------------------------------------------------------------
-
-export class SystemNotFoundError extends Error {
-  constructor(slug: string) {
-    super(`System not found: ${slug}`);
-    this.name = 'SystemNotFoundError';
-  }
-}
+// Import + re-export typed error from shared
+import { SystemNotFoundError } from '../../shared/errors';
+export { SystemNotFoundError };

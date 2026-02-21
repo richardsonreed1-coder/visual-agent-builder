@@ -114,9 +114,7 @@ router.put(
       await updateSystemStatus(req.params.slug, req.body.status);
       res.json({ success: true });
     } catch (error) {
-      if (error instanceof SystemNotFoundError) {
-        return next(new AppError(404, error.message, 'NOT_FOUND'));
-      }
+      // SystemNotFoundError is an AutopilateError with 404 status — pass through
       next(error);
     }
   }
@@ -128,9 +126,7 @@ router.delete('/:slug', async (req: Request, res: Response, next: NextFunction) 
     await archiveSystem(req.params.slug);
     res.status(204).send();
   } catch (error) {
-    if (error instanceof SystemNotFoundError) {
-      return next(new AppError(404, error.message, 'NOT_FOUND'));
-    }
+    // SystemNotFoundError is an AutopilateError with 404 status — pass through
     next(error);
   }
 });

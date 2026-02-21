@@ -56,8 +56,10 @@ router.post(
       const record = await deploySystem(req.body, openclawRoot);
       res.status(201).json(record);
     } catch (error) {
+      // DeployError (DeploymentError) is an AutopilateError — the centralized
+      // error handler will format it correctly. Pass through directly.
       if (error instanceof DeployError) {
-        return next(new AppError(500, error.message, `DEPLOY_FAILED_${error.step.toUpperCase()}`));
+        return next(error);
       }
       if (
         error instanceof Error &&

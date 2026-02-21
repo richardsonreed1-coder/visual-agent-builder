@@ -13,14 +13,11 @@ import { pool } from '../db';
 // Types
 // -----------------------------------------------------------------------------
 
-export class OpenClawError extends Error {
-  constructor(
-    message: string,
-    public readonly reason?: string,
-    public readonly cause?: unknown
-  ) {
-    super(message);
-    this.name = 'OpenClawError';
+import { OpenClawConnectionError } from '../../shared/errors';
+
+export class OpenClawError extends OpenClawConnectionError {
+  constructor(message: string, reason?: string, cause?: unknown) {
+    super(reason ?? 'UNKNOWN', message, cause);
   }
 }
 

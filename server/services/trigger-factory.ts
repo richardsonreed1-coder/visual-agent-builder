@@ -52,12 +52,8 @@ export type TriggerConfig =
   | MessagingTriggerConfig
   | DaemonTriggerConfig;
 
-export class TriggerConfigError extends Error {
-  constructor(message: string, public readonly triggerType?: string) {
-    super(message);
-    this.name = 'TriggerConfigError';
-  }
-}
+import { TriggerConfigError } from '../../shared/errors';
+export { TriggerConfigError };
 
 // -----------------------------------------------------------------------------
 // Public API

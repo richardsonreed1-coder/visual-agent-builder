@@ -20,16 +20,10 @@ export interface ProcessStatus {
   restarts: number;
 }
 
-export class PM2Error extends Error {
-  constructor(
-    message: string,
-    public readonly processName?: string,
-    public readonly cause?: unknown
-  ) {
-    super(message);
-    this.name = 'PM2Error';
-  }
-}
+import { PM2ProcessError } from '../../shared/errors';
+
+// Re-export for backward compat
+export { PM2ProcessError as PM2Error };
 
 // -----------------------------------------------------------------------------
 // Constants
@@ -45,7 +39,7 @@ const POLL_TIMEOUT_MS = 15_000;
 function connectPm2(): Promise<void> {
   return new Promise((resolve, reject) => {
     pm2.connect((err) => {
-      if (err) reject(new PM2Error('Failed to connect to PM2 daemon', undefined, err));
+      if (err) reject(new PM2ProcessError('Failed to connect to PM2 daemon', undefined, err));
       else resolve();
     });
   });
@@ -74,7 +68,7 @@ async function withPm2<T>(fn: () => Promise<T>): Promise<T> {
 function pm2Start(config: PM2AppConfig): Promise<pm2.Proc> {
   return new Promise((resolve, reject) => {
     pm2.start(config as unknown as pm2.StartOptions, (err, proc) => {
-      if (err) reject(new PM2Error(`Failed to start process: ${config.name}`, config.name, err));
+      if (err) reject(new PM2ProcessError(`Failed to start process: ${config.name}`, config.name, err));
       else resolve(proc as unknown as pm2.Proc);
     });
   });
@@ -83,7 +77,7 @@ function pm2Start(config: PM2AppConfig): Promise<pm2.Proc> {
 function pm2Stop(name: string): Promise<void> {
   return new Promise((resolve, reject) => {
     pm2.stop(name, (err) => {
-      if (err) reject(new PM2Error(`Failed to stop process: ${name}`, name, err));
+      if (err) reject(new PM2ProcessError(`Failed to stop process: ${name}`, name, err));
       else resolve();
     });
   });
@@ -92,7 +86,7 @@ function pm2Stop(name: string): Promise<void> {
 function pm2Delete(name: string): Promise<void> {
   return new Promise((resolve, reject) => {
     pm2.delete(name, (err) => {
-      if (err) reject(new PM2Error(`Failed to delete process: ${name}`, name, err));
+      if (err) reject(new PM2ProcessError(`Failed to delete process: ${name}`, name, err));
       else resolve();
     });
   });
@@ -101,7 +95,7 @@ function pm2Delete(name: string): Promise<void> {
 function pm2Restart(name: string): Promise<void> {
   return new Promise((resolve, reject) => {
     pm2.restart(name, (err) => {
-      if (err) reject(new PM2Error(`Failed to restart process: ${name}`, name, err));
+      if (err) reject(new PM2ProcessError(`Failed to restart process: ${name}`, name, err));
       else resolve();
     });
   });
@@ -110,7 +104,7 @@ function pm2Restart(name: string): Promise<void> {
 function pm2Describe(name: string): Promise<pm2.ProcessDescription[]> {
   return new Promise((resolve, reject) => {
     pm2.describe(name, (err, descriptions) => {
-      if (err) reject(new PM2Error(`Failed to describe process: ${name}`, name, err));
+      if (err) reject(new PM2ProcessError(`Failed to describe process: ${name}`, name, err));
       else resolve(descriptions);
     });
   });
@@ -119,7 +113,7 @@ function pm2Describe(name: string): Promise<pm2.ProcessDescription[]> {
 function pm2List(): Promise<pm2.ProcessDescription[]> {
   return new Promise((resolve, reject) => {
     pm2.list((err, list) => {
-      if (err) reject(new PM2Error('Failed to list PM2 processes', undefined, err));
+      if (err) reject(new PM2ProcessError('Failed to list PM2 processes', undefined, err));
       else resolve(list);
     });
   });
@@ -145,7 +139,7 @@ async function pollForOnline(name: string): Promise<void> {
     }
 
     if (proc?.pm2_env?.status === 'errored') {
-      throw new PM2Error(
+      throw new PM2ProcessError(
         `Process entered errored state: ${name}`,
         name
       );
@@ -154,7 +148,7 @@ async function pollForOnline(name: string): Promise<void> {
     await delay(POLL_INTERVAL_MS);
   }
 
-  throw new PM2Error(
+  throw new PM2ProcessError(
     `Process did not reach online status within ${POLL_TIMEOUT_MS}ms: ${name}`,
     name
   );
@@ -232,7 +226,7 @@ export async function listProcesses(): Promise<ProcessStatus[]> {
 async function getProcessStatusInternal(name: string): Promise<ProcessStatus> {
   const descriptions = await pm2Describe(name);
   if (descriptions.length === 0) {
-    throw new PM2Error(`Process not found: ${name}`, name);
+    throw new PM2ProcessError(`Process not found: ${name}`, name);
   }
   return descriptionToStatus(descriptions[0]);
 }

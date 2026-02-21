@@ -470,17 +470,6 @@ function buildEscalationSummary(
   );
 }
 
-// -----------------------------------------------------------------------------
-// Errors
-// -----------------------------------------------------------------------------
-
-export class QaRemediationError extends Error {
-  constructor(
-    message: string,
-    public readonly step: string,
-    public readonly cause?: unknown
-  ) {
-    super(message);
-    this.name = 'QaRemediationError';
-  }
-}
+// Import + re-export typed error from shared
+import { QaRemediationError } from '../../shared/errors';
+export { QaRemediationError };

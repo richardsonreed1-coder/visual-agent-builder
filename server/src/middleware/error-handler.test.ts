@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { Request, Response, NextFunction } from 'express';
 import { AppError, errorHandler, notFoundHandler } from './error-handler';
+import { DeploymentError, SystemNotFoundError } from '../../../shared/errors';
 
 function mockRes(): Response {
   const res = {
@@ -43,6 +44,36 @@ describe('errorHandler', () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       error: 'Internal server error',
+      code: 'INTERNAL_ERROR',
+      status: 500,
+    });
+  });
+
+  it('returns AutopilateError status and formatted JSON', () => {
+    const err = new DeploymentError('PM2_NO_CONFIG', 'No PM2 config found', 'pm2-start');
+    const res = mockRes();
+
+    errorHandler(err, {} as Request, res, (() => {}) as NextFunction);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'No PM2 config found',
+      code: 'DEPLOYMENT_PM2_NO_CONFIG',
+      status: 500,
+    });
+  });
+
+  it('returns 404 for SystemNotFoundError', () => {
+    const err = new SystemNotFoundError('my-system');
+    const res = mockRes();
+
+    errorHandler(err, {} as Request, res, (() => {}) as NextFunction);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'System not found: my-system',
+      code: 'DEPLOYMENT_NOT_FOUND',
+      status: 404,
     });
   });
 
