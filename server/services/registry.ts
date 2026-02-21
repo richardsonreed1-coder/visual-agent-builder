@@ -8,6 +8,7 @@ import {
   DeploymentRecord,
   DeploymentStatus,
 } from '../types/registry';
+import { encrypt, decrypt } from '../lib/crypto';
 
 // -----------------------------------------------------------------------------
 // Row → DeploymentRecord mapper
@@ -23,10 +24,28 @@ interface DeploymentRow {
   trigger_type: string;
   trigger_config: unknown;
   pm2_process_name: string;
+  secrets_encrypted: string | null;
   status: string;
   deployed_at: string;
   created_at: string;
   updated_at: string;
+}
+
+function decryptSecrets(encrypted: string | null): Record<string, string> | null {
+  if (!encrypted) return null;
+  if (!process.env.ENCRYPTION_KEY) return null;
+  try {
+    return JSON.parse(decrypt(encrypted)) as Record<string, string>;
+  } catch {
+    console.warn('[registry] Failed to decrypt secrets — returning null');
+    return null;
+  }
+}
+
+function encryptSecrets(secrets: Record<string, string>): string | null {
+  if (!process.env.ENCRYPTION_KEY) return null;
+  if (Object.keys(secrets).length === 0) return null;
+  return encrypt(JSON.stringify(secrets));
 }
 
 function rowToRecord(row: DeploymentRow): DeploymentRecord {
@@ -40,6 +59,7 @@ function rowToRecord(row: DeploymentRow): DeploymentRecord {
     triggerType: row.trigger_type as DeploymentRecord['triggerType'],
     triggerConfig: row.trigger_config,
     pm2ProcessName: row.pm2_process_name,
+    secretsDecrypted: decryptSecrets(row.secrets_encrypted),
     status: row.status as DeploymentStatus,
     deployedAt: row.deployed_at,
     createdAt: row.created_at,
@@ -57,6 +77,8 @@ export async function registerSystem(
   const { manifest, canvasJson } = bundle;
   const pm2ProcessName = `autopilate-${manifest.slug}`;
 
+  const encryptedSecrets = encryptSecrets(bundle.envExample);
+
   const { rows } = await pool.query<DeploymentRow>(
     `INSERT INTO deployments (
        system_name,
@@ -66,9 +88,10 @@ export async function registerSystem(
        trigger_type,
        trigger_config,
        pm2_process_name,
+       secrets_encrypted,
        status,
        deployed_at
-     ) VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6::jsonb, $7, $8, now())
+     ) VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6::jsonb, $7, $8, $9, now())
      RETURNING *`,
     [
       manifest.name,
@@ -78,6 +101,7 @@ export async function registerSystem(
       manifest.triggerPattern,
       JSON.stringify({}),
       pm2ProcessName,
+      encryptedSecrets,
       'deployed',
     ]
   );

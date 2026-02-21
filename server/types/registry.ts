@@ -98,6 +98,7 @@ export interface DeploymentRecord {
   triggerType: TriggerPattern;
   triggerConfig: unknown;
   pm2ProcessName: string;
+  secretsDecrypted: Record<string, string> | null;
   status: DeploymentStatus;
   deployedAt: string;
   createdAt: string;

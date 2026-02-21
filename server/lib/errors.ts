@@ -111,6 +111,29 @@ export class TriggerConfigError extends DeploymentError {
   }
 }
 
+// --- Security Errors (auth, rate limiting, webhook verification) ---
+
+export class AuthenticationError extends AutopilateError {
+  constructor(message: string = 'Authentication required') {
+    super('AUTH_FAILED', message, 401);
+    this.name = 'AuthenticationError';
+  }
+}
+
+export class RateLimitError extends AutopilateError {
+  constructor(message: string = 'Too many requests, please try again later') {
+    super('RATE_LIMITED', message, 429);
+    this.name = 'RateLimitError';
+  }
+}
+
+export class WebhookSignatureError extends AutopilateError {
+  constructor(message: string = 'Invalid webhook signature') {
+    super('WEBHOOK_SIGNATURE_INVALID', message, 401);
+    this.name = 'WebhookSignatureError';
+  }
+}
+
 // --- Utility: check if an error is an AutopilateError ---
 
 export function isAutopilateError(err: unknown): err is AutopilateError {

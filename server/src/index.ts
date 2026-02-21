@@ -5,7 +5,6 @@ dotenv.config({ path: path.resolve(__dirname, '../.env'), override: true });
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 import fs from 'fs/promises';
 import { createServer } from 'http';
 import { Server as SocketServer } from 'socket.io';
@@ -51,6 +50,9 @@ import {
   configureWorkflowBodySchema,
   configureNodeBodySchema,
 } from './middleware/validation';
+import { apiKeyAuth } from './middleware/auth';
+import { slidingWindowRateLimiter } from './middleware/rate-limiter';
+import { webhookVerify } from './middleware/webhook-verify';
 
 // =============================================================================
 // Server Configuration
@@ -107,7 +109,7 @@ app.use(
   cors({
     origin: CORS_ORIGINS,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Webhook-Signature'],
   })
 );
 
@@ -117,24 +119,14 @@ app.use(express.json({ limit: '1mb' }));
 // Request logging
 app.use(requestLogger);
 
-// Rate limiting — general API
-const apiLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later' },
-});
-app.use('/api/', apiLimiter);
+// Rate limiting — sliding window, 100 req/min per IP
+app.use('/api/', slidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 100 }));
+
+// API key authentication — all /api/ routes except /api/health
+app.use('/api/', apiKeyAuth);
 
 // Stricter rate limit for AI-powered endpoints
-const aiLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many AI requests, please try again later' },
-});
+const aiLimiter = slidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 10 });
 
 // =============================================================================
 // Search Index Cache
