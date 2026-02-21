@@ -158,7 +158,22 @@ autopilate/
 
 ## Documentation
 
-- [Architecture Spec](docs/spec.md) -- Full system design, database schema, API routes, key decisions
+### Architecture & Reference
+
+- [Architecture Overview](docs/architecture.md) -- Component diagram, folder structure, data flow from design through deployment
+- [API Reference: REST](docs/api.md) -- Every REST endpoint with request/response schemas and curl examples
+- [API Reference: Socket.io](docs/api-socket.md) -- All Socket.io events, payload schemas, and AI failover strategy
+- [Data Model](docs/data-model.md) -- ER diagram, table schemas, JSONB column structures, Redis key patterns
+
+### Business Logic
+
+- [Export & Deploy](docs/business-logic-export.md) -- Bundle generation, deploy bridge, trigger factory, configure wizard
+- [Router & Sessions](docs/business-logic-router.md) -- Message classification, input gathering, session management, chat pipeline
+- [Operator Agents](docs/business-logic-operators.md) -- System monitor, QA remediation, optimization agent, orchestrator bridge
+
+### Planning & Operations
+
+- [Architecture Spec](docs/spec.md) -- Original system design spec and key decisions
 - [Sprint Plan](docs/sprint-plan.md) -- Task breakdown with agent prompts and verification steps
 - [Execution Playbook](docs/execution-playbook.md) -- Daily workflow, recovery patterns, parallel execution guide
 - [Verification Checklist](docs/verification-checklist.md) -- Pre-deploy QA checklist
