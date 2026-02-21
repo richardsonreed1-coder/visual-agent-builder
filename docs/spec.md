@@ -41,73 +41,133 @@ autopilate/
 ├── tsconfig.json
 ├── vite.config.ts
 ├── vitest.config.ts
-├── AGENTS.md → CLAUDE.md (symlink)
+├── docker-compose.yml
+├── Dockerfile
+├── CLAUDE.md → AGENTS.md (symlink)
 ├── docs/
 │   ├── spec.md
 │   ├── sprint-plan.md
 │   ├── execution-playbook.md
 │   └── verification-checklist.md
-├── src/
-│   ├── main.tsx                      # Vite entry point for VAB frontend
-│   ├── App.tsx                       # Root component, routing
-│   ├── canvas/                       # React Flow canvas, node types, edge types
-│   │   ├── nodes/                    # Node components (Agent, Skill, Plugin, Tool, etc.)
-│   │   ├── edges/                    # Edge components (delegation, data, control, event, failover)
-│   │   └── store.ts                  # Zustand canvas state
-│   ├── config/                       # Configure Wizard, Fixer Agent UI
-│   │   ├── ConfigModal.tsx           # Per-node configuration panel
-│   │   ├── ConfigureWizard.tsx       # Three-phase analysis modal
-│   │   └── FixerTerminal.tsx         # Fixer Agent streaming output
-│   ├── export/                       # Export Engine
-│   │   ├── bundle-generator.ts       # AUTOPILATE System Bundle generator
-│   │   ├── claude-md-generator.ts    # Per-agent CLAUDE.md generation
-│   │   ├── pm2-config-generator.ts   # PM2 ecosystem file generation
-│   │   └── types.ts                  # SystemManifest, SystemBundle types
-│   ├── deploy/                       # Deploy Bridge
-│   │   ├── deploy-bridge.ts          # Canvas → OpenClaw config translation
-│   │   ├── trigger-factory.ts        # Cron/webhook/messaging/always-on triggers
-│   │   ├── registry.ts               # PostgreSQL deployment registry client
-│   │   └── pm2-manager.ts            # PM2 process lifecycle management
-│   ├── library/                      # Systems Library
-│   │   ├── systems-catalog.ts        # System CRUD, search, categorization
-│   │   ├── SystemsDashboard.tsx      # Deployed systems overview UI
-│   │   └── SystemDetail.tsx          # Per-system execution history, logs, health
-│   ├── router/                       # Router Agent
-│   │   ├── router-agent.ts           # Message classification, system matching
-│   │   ├── input-gatherer.ts         # Conversational input collection
-│   │   └── session-manager.ts        # Feedback loop session context
-│   ├── operators/                    # Operator Agents
-│   │   ├── system-monitor.ts         # 5-min health check + auto-fix
-│   │   ├── qa-remediation.ts         # QA FAIL → targeted re-execution
-│   │   └── optimization-agent.ts     # Weekly cost/quality/reliability analysis
-│   ├── dashboard/                    # Dashboard UI
-│   │   ├── Dashboard.tsx             # Main dashboard layout
-│   │   ├── ExecutionHistory.tsx      # Per-system execution timeline
-│   │   ├── CostTracker.tsx           # Cost per system, per execution
-│   │   ├── HealthPanel.tsx           # System health status
-│   │   └── LogStream.tsx             # Live log streaming via Redis pub/sub
-│   ├── server/                       # Backend server
-│   │   ├── index.ts                  # Express + WebSocket server entry
-│   │   ├── routes/                   # API routes (systems, deploy, logs, health)
-│   │   ├── db.ts                     # PostgreSQL connection + queries
-│   │   ├── redis.ts                  # Redis pub/sub client
-│   │   └── middleware/               # Auth, error handling, validation
-│   ├── types/                        # Shared TypeScript types
-│   │   ├── config.ts                 # Node/edge/canvas config types (CLEANED)
-│   │   ├── system.ts                 # SystemManifest, DeploymentRecord, ExecutionLog
-│   │   ├── openclaw.ts               # OpenClaw-compatible config types
-│   │   └── operator.ts               # Operator agent types (monitor, QA, optimization)
-│   └── shared/                       # Utilities
-│       ├── logger.ts                 # Structured logging
-│       ├── errors.ts                 # Typed error classes
-│       └── constants.ts              # App-wide constants
-├── tests/
-│   ├── export/                       # Bundle generator tests
-│   ├── deploy/                       # Deploy bridge tests
-│   ├── router/                       # Router agent tests
-│   ├── operators/                    # Operator agent tests
-│   └── fixtures/                     # Test workflow JSONs, mock OpenClaw responses
-└── dist/                             # Build output
+├── src/                                  # React frontend (Vite + TypeScript)
+│   ├── main.tsx                          # Vite entry point
+│   ├── App.tsx                           # Root component, three-panel layout
+│   ├── components/
+│   │   ├── Editor/                       # React Flow canvas
+│   │   │   ├── Canvas.tsx                # Drop handling, node/edge rendering
+│   │   │   ├── Toolbar.tsx               # Export, run, save/load, configure, deploy
+│   │   │   ├── EdgeTypeSelector.tsx      # Edge type picker
+│   │   │   ├── Nodes/                    # CustomNode, AgentPoolNode, GroupNode, etc.
+│   │   │   └── Edges/                    # Delegation, Data, Control, Event, Failover
+│   │   ├── Library/                      # Component library + systems dashboard
+│   │   │   ├── LibraryPanel.tsx          # File tree with search, category tabs, add mode
+│   │   │   ├── SystemsDashboard.tsx      # Deployed systems overview
+│   │   │   ├── SystemDetail.tsx          # Per-system execution history, logs, health
+│   │   │   ├── LogStream.tsx             # Live log streaming
+│   │   │   └── OperatorActionsPanel.tsx  # Operator actions with approve/reject
+│   │   ├── Properties/                   # Node configuration forms
+│   │   │   ├── PropertiesPanel.tsx       # Full agent configuration UI
+│   │   │   ├── DynamicForm.tsx           # Schema-driven form rendering
+│   │   │   ├── EdgeInspector.tsx         # Edge configuration
+│   │   │   ├── fields/                   # Form field components (text, select, array, etc.)
+│   │   │   └── schemas/                  # JSON schemas for node types
+│   │   ├── ConfigureWizard/              # AI-powered 3-phase config analysis
+│   │   │   ├── ConfigureWizardModal.tsx  # Main wizard modal
+│   │   │   ├── WorkflowScanView.tsx      # Phase 1: scan canvas
+│   │   │   ├── NodeConfigView.tsx        # Phase 2: per-node suggestions
+│   │   │   └── SummaryView.tsx           # Phase 3: summary + apply
+│   │   ├── Terminal/                     # Streaming execution output
+│   │   │   └── TerminalPanel.tsx         # Execution logs, progress, results
+│   │   ├── Chat/                         # Router agent messaging UI
+│   │   │   └── ChatPanel.tsx             # Chat input, messages, session status
+│   │   ├── Deploy/                       # Deployment UI
+│   │   │   ├── DeployModal.tsx           # Deploy dialog with trigger config
+│   │   │   └── TriggerConfigFields.tsx   # Cron/webhook/messaging/always-on fields
+│   │   ├── ConfigModal.tsx               # Per-node quick config
+│   │   └── StatusPanel.tsx               # System status display
+│   ├── store/
+│   │   └── useStore.ts                   # Zustand store (nodes, edges, selectedNode, etc.)
+│   ├── export/                           # System bundle export
+│   │   ├── bundle-generator.ts           # Canvas → SystemBundle
+│   │   ├── bundle-zip.ts                 # ZIP packaging
+│   │   ├── claude-md-generator.ts        # Per-agent CLAUDE.md generation
+│   │   ├── pm2-config-generator.ts       # PM2 ecosystem file generation
+│   │   └── types.ts                      # SystemManifest, SystemBundle types
+│   ├── features/export-import/           # JSON workflow save/load
+│   │   ├── export.ts                     # Canvas state export
+│   │   ├── import.ts                     # Canvas state import + validation
+│   │   └── components/                   # ExportDialog, ImportDropzone, ValidationReport
+│   ├── services/
+│   │   ├── api.ts                        # Inventory + component content API client
+│   │   └── configureApi.ts               # Configure wizard API client
+│   ├── hooks/
+│   │   ├── useSocket.ts                  # Socket.io connection hook
+│   │   └── useHeadlessSession.ts         # Headless mode hook
+│   ├── types/
+│   │   ├── core.ts                       # Node types, edge types, workflow types
+│   │   ├── config.ts                     # Configuration types
+│   │   ├── export.ts                     # Export format types
+│   │   └── system.ts                     # SystemManifest, DeploymentRecord, ExecutionLog
+│   ├── constants/                        # Buckets, taxonomy, subcategories
+│   └── utils/
+│       ├── export.ts                     # JSON workflow export
+│       ├── generateClaudeMdExecutable.ts # Executable CLAUDE.md generation
+│       └── export/                       # Export generators (vab-native/, skill-schemas/)
+├── server/                               # Express + Socket.io backend
+│   ├── src/
+│   │   ├── index.ts                      # Express app entry, CORS, routes, Socket.io
+│   │   └── middleware/                   # Auth, rate-limiter, validation, error-handler, webhook-verify
+│   ├── routes/
+│   │   ├── systems.ts                    # System CRUD API
+│   │   ├── deploy.ts                     # Deploy/redeploy/stop endpoints
+│   │   └── operators.ts                  # Operator actions API + approval
+│   ├── services/
+│   │   ├── inventory/                    # Component inventory scanner, cache, parsers
+│   │   ├── deploy-bridge.ts              # Canvas → OpenClaw config translation
+│   │   ├── registry.ts                   # PostgreSQL deployment registry
+│   │   ├── trigger-factory.ts            # Cron/webhook/messaging/always-on triggers
+│   │   ├── pm2-manager.ts                # PM2 process lifecycle management
+│   │   ├── router-agent.ts               # Message classification + system routing
+│   │   ├── system-matcher.ts             # Semantic system matching
+│   │   ├── input-gatherer.ts             # Conversational input collection
+│   │   ├── session-manager.ts            # Feedback loop session context
+│   │   ├── system-monitor.ts             # 5-min health check + auto-fix operator
+│   │   ├── qa-remediation.ts             # QA FAIL → targeted re-execution operator
+│   │   ├── optimization-agent.ts         # Weekly cost/quality analysis operator
+│   │   ├── openclaw-client.ts            # OpenClaw gateway WebSocket client
+│   │   ├── log-stream.ts                 # Redis pub/sub log streaming
+│   │   ├── orchestrator-bridge.ts        # Canvas → ParsedWorkflow → ExecutionPlan
+│   │   ├── runtime.ts                    # Agent execution via Claude API
+│   │   ├── session-store.ts              # File-backed session persistence
+│   │   └── configuration-analyzer.ts     # AI-powered config gap analysis
+│   ├── socket/
+│   │   ├── handlers.ts                   # Socket.io event handlers
+│   │   └── emitter.ts                    # Socket.io event emitter
+│   ├── agents/                           # Architect, builder, supervisor agents
+│   ├── mcp/                              # MCP server + canvas manipulation tools
+│   ├── lib/
+│   │   ├── anthropic-client.ts           # Claude API wrapper
+│   │   ├── crypto.ts                     # AES-256-GCM encryption
+│   │   └── errors.ts                     # AutopilateError base class + subclasses
+│   ├── types/
+│   │   ├── registry.ts                   # Deployment registry types
+│   │   ├── execution-plan.ts             # Workflow execution types
+│   │   └── session.ts                    # Session/chat types
+│   ├── migrations/
+│   │   └── 20260219_000001_initial_schema.ts
+│   ├── tests/                            # Server tests
+│   │   ├── deploy/                       # Deploy bridge, PM2 manager, trigger factory tests
+│   │   ├── router/                       # Router agent, system matcher, session tests
+│   │   ├── operators/                    # Monitor, QA remediation, optimization tests
+│   │   └── fixtures/                     # Mock manifests and test data
+│   ├── db.ts                             # PostgreSQL connection + pool
+│   └── package.json
+├── shared/                               # Shared types (no src/ or server/ imports)
+│   ├── socket-events.ts                  # Socket.io event type definitions
+│   ├── configure-types.ts                # Configure wizard types
+│   └── subcategories.ts                  # Shared category definitions
+├── tests/                                # Root-level integration tests
+└── dist/                                 # Build output
 ```
 
 ## Database Schema
