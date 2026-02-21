@@ -20,7 +20,7 @@ export interface ProcessStatus {
   restarts: number;
 }
 
-import { PM2ProcessError } from '../../shared/errors';
+import { PM2ProcessError } from '../lib/errors';
 
 // Re-export for backward compat
 export { PM2ProcessError as PM2Error };

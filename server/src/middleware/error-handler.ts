@@ -3,7 +3,7 @@
 // =============================================================================
 
 import { Request, Response, NextFunction } from 'express';
-import { AutopilateError, isAutopilateError } from '../../../shared/errors';
+import { AutopilateError, isAutopilateError } from '../../lib/errors';
 
 // -----------------------------------------------------------------------------
 // Application Error Class

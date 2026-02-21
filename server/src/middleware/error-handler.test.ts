@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { Request, Response, NextFunction } from 'express';
 import { AppError, errorHandler, notFoundHandler } from './error-handler';
-import { DeploymentError, SystemNotFoundError } from '../../../shared/errors';
+import { DeploymentError, SystemNotFoundError } from '../../lib/errors';
 
 function mockRes(): Response {
   const res = {

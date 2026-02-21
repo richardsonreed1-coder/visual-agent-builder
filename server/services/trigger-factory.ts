@@ -52,7 +52,7 @@ export type TriggerConfig =
   | MessagingTriggerConfig
   | DaemonTriggerConfig;
 
-import { TriggerConfigError } from '../../shared/errors';
+import { TriggerConfigError } from '../lib/errors';
 export { TriggerConfigError };
 
 // -----------------------------------------------------------------------------

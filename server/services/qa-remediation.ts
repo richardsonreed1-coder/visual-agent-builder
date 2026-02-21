@@ -471,5 +471,5 @@ function buildEscalationSummary(
 }
 
 // Import + re-export typed error from shared
-import { QaRemediationError } from '../../shared/errors';
+import { QaRemediationError } from '../lib/errors';
 export { QaRemediationError };

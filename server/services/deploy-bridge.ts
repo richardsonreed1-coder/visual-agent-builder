@@ -20,7 +20,7 @@ import {
   TriggerConfig,
 } from './trigger-factory';
 import { startProcess, deleteProcess } from './pm2-manager';
-import { DeploymentError } from '../../shared/errors';
+import { DeploymentError } from '../lib/errors';
 
 // Re-export for backward compat in route handlers
 export { DeploymentError as DeployError };

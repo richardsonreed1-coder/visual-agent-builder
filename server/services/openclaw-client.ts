@@ -13,7 +13,7 @@ import { pool } from '../db';
 // Types
 // -----------------------------------------------------------------------------
 
-import { OpenClawConnectionError } from '../../shared/errors';
+import { OpenClawConnectionError } from '../lib/errors';
 
 export class OpenClawError extends OpenClawConnectionError {
   constructor(message: string, reason?: string, cause?: unknown) {

@@ -133,5 +133,5 @@ export async function archiveSystem(slug: string): Promise<void> {
 }
 
 // Import + re-export typed error from shared
-import { SystemNotFoundError } from '../../shared/errors';
+import { SystemNotFoundError } from '../lib/errors';
 export { SystemNotFoundError };
